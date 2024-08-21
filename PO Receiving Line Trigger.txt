@@ -1,0 +1,546 @@
+--PO Receiving Line trigger
+
+CREATE OR ALTER TRIGGER [dbo].[Trg_POReceivingLine] ON [dbo].[PurchaseOrderReceivingLine] FOR INSERT
+AS
+BEGIN
+	SET NOCOUNT ON;
+	DECLARE @PurchaseOrderReceivingLinePK NVARCHAR(200);
+	DECLARE @PurchaseOrderReceivingFK NVARCHAR(200);
+	DECLARE @Item NVARCHAR(200);
+	DECLARE @UnitOfMeasureSetFK NVARCHAR(200);
+	DECLARE @GeneralLedgerAccountFK NVARCHAR(200);
+	DECLARE @InspectorFK NVARCHAR(200);
+	DECLARE @PurchaseOrderLineFK NVARCHAR(200);
+	DECLARE @PurchaseOrderReceivingLineStatusFK NVARCHAR(200);
+	DECLARE @PurchaseOrderNumber NVARCHAR(500);
+	DECLARE @ItemInventoryLocationFK NVARCHAR(1000);
+	DECLARE @Vendor NVARCHAR(500);
+	DECLARE @LineReferenceNumber NVARCHAR(100);
+	DECLARE @ParentLineReferenceNumber NVARCHAR(200);
+	DECLARE @CertificationsRequired BIT;
+	DECLARE @GotCertificate BIT;
+	DECLARE @Inspected BIT;
+	DECLARE @InspectionRequired BIT;
+	DECLARE @LotPrice BIT;
+	DECLARE @MakeFromItem BIT;
+	DECLARE @Posted BIT;
+	DECLARE @PurchaseToJob BIT;
+	DECLARE @Rejected BIT;
+	DECLARE @Taxable BIT;
+	DECLARE @PopupNotifyComment BIT;
+	DECLARE @RequiresInspection BIT;
+	DECLARE @ClosePOLine BIT;
+	DECLARE @DueDate DATETIME;
+	DECLARE @ReceiveDate DATETIME;
+	DECLARE @ConfirmDate DATETIME;
+	DECLARE @PostDate DATETIME;
+	DECLARE @InspectedDate DATETIME;
+	DECLARE @ExpirationDate DATETIME;
+	DECLARE @BatchNumber NVARCHAR(100);
+	DECLARE @Revision NVARCHAR(100);
+	DECLARE @Description NVARCHAR(1000);
+	DECLARE @LotNumber NVARCHAR(500);
+	DECLARE @LocationDescription NVARCHAR(500);
+	DECLARE @PartNumber NVARCHAR(400);
+	DECLARE @SerialNumber NVARCHAR(200);
+	DECLARE @VendorPartNumber NVARCHAR(500);
+	DECLARE @EmployeeName NVARCHAR(1000);
+	DECLARE @Memo NVARCHAR(800);
+	DECLARE @WeightPerPiece NVARCHAR(100);
+	DECLARE @QuantityInspected NVARCHAR(100);
+	DECLARE @QuantityNotAccepted NVARCHAR(100);
+	DECLARE @PartWidth DECIMAL;
+	DECLARE @PartLength DECIMAL;
+	DECLARE @Invoice NVARCHAR(100);
+	DECLARE @StockLength NVARCHAR(200);
+	DECLARE @VendorUnit DECIMAL;
+	DECLARE @Quantity DECIMAL;
+	DECLARE @QuantityOrdered DECIMAL;
+	DECLARE @ComponentCost NVARCHAR(200);
+	DECLARE @Price DECIMAL;
+	DECLARE @Minimum DECIMAL;
+	DECLARE @SalesTax1Amount DECIMAL;
+	DECLARE @SalesTax2Amount DECIMAL;
+	DECLARE @SalesTax3Amount DECIMAL;
+	DECLARE @SalesTax4Amount DECIMAL;
+	DECLARE @ExtendedAmount DECIMAL;
+	DECLARE @ForeignCurrencyPrice DECIMAL;
+	DECLARE @ForeignCurrencyMiscellaneousAmount1 NVARCHAR(100);
+	DECLARE @ForeignCurrencyMiscellaneousAmount2 NVARCHAR(100);
+	DECLARE @ForeignCurrencyMiscellaneousAmount3 NVARCHAR(100);
+	DECLARE @ForeignCurrencyTotalMiscellaneousAmount DECIMAL;
+	DECLARE @ForeignCurrencySalesTax1Amount DECIMAL;	
+	DECLARE @ForeignCurrencySalesTax2Amount DECIMAL;
+	DECLARE @ForeignCurrencySalesTax3Amount DECIMAL;
+	DECLARE @ForeignCurrencySalesTax4Amount DECIMAL;
+	DECLARE @ForeignCurrencyExtendedAmount DECIMAL;
+	DECLARE @ExtendedAmountConfirmed DECIMAL;
+	DECLARE @LandedCost DECIMAL;
+	DECLARE @InspectComment NVARCHAR(1000);
+	DECLARE @RejectComment NVARCHAR(1000);
+	DECLARE @Comment NVARCHAR(1000);
+	DECLARE @NotifyComment NVARCHAR(1000);
+	DECLARE @CustomDescription NVARCHAR(1000);
+	DECLARE @CustomCheckBox1 BIT;
+	DECLARE @CustomCheckBox2 BIT;
+	DECLARE @CustomCheckBox3 BIT;
+	DECLARE @SalesTax1Name NVARCHAR(100);
+	DECLARE @SalesTax1Rate NVARCHAR(200);
+	DECLARE @SalesTaxType1Description NVARCHAR(1000);
+	DECLARE @SalesTax2Name NVARCHAR(100);
+	DECLARE @SalesTax2Rate NVARCHAR(200);
+	DECLARE @SalesTaxType2Description NVARCHAR(1000);
+	DECLARE @SalesTax3Name NVARCHAR(100);
+	DECLARE @SalesTax3Rate NVARCHAR(200);
+	DECLARE @SalesTaxType3Description NVARCHAR(1000);
+	DECLARE @SalesTax4Name NVARCHAR(100);
+	DECLARE @SalesTax4Rate NVARCHAR(200);
+	DECLARE @SalesTaxType4Description NVARCHAR(1000);
+	DECLARE @QuantityInvoiced NVARCHAR(1000);
+	DECLARE @Thickness DECIMAL;
+	DECLARE @MachineFK NVARCHAR(100);
+	DECLARE @FullSubject NVARCHAR(500);
+	DECLARE @FullDescription NVARCHAR(500);
+	DECLARE @Email NVARCHAR(200);
+	SET @Email = 'ap.eii@etezazicorps.com;vimanga.umange@etezazicorps.com';
+	SET @FullSubject = '';
+	SET @FullDescription = '';
+	DECLARE PurchaseOrderReceiving_Cursor CURSOR LOCAL
+	FOR SELECT
+	
+	PurchaseOrderReceivingLinePK,
+	PurchaseOrderReceivingFK,
+	ISNULL((
+				SELECT Description
+				FROM Item
+				WHERE ItemPK = [ItemFK]
+				), '')Item,
+				
+	UnitOfMeasureSetFK,
+	GeneralLedgerAccountFK,
+	InspectorFK,
+	PurchaseOrderLineFK,
+	PurchaseOrderReceivingLineStatusFK,
+	PurchaseOrderNumber,
+	ItemInventoryLocationFK,
+	ISNULL((
+				SELECT Name
+				FROM Party
+				WHERE PartyPK = [ManufacturerFK]
+				), '')Vendor,
+	LineReferenceNumber,
+	ParentLineReferenceNumber,
+	CertificationsRequired,
+	GotCertificate,
+	Inspected,
+	InspectionRequired,
+	LotPrice,
+	MakeFromItem,
+	Posted,
+	PurchaseToJob,
+	Rejected,
+	Taxable,
+	PopupNotifyComment,
+	RequiresInspection,
+	ClosePOLine,
+	DueDate,
+	ReceiveDate,
+	ConfirmDate,
+	PostDate,
+	InspectedDate,
+	ExpirationDate,
+	BatchNumber,
+	Revision,
+	Description,
+	LotNumber,
+	LocationDescription,
+	PartNumber,
+	SerialNumber,
+	VendorPartNumber,
+	EmployeeName,
+	Memo,
+	WeightPerPiece,
+	QuantityInspected,
+	QuantityNotAccepted,
+	PartWidth,
+	PartLength,
+	ISNULL((
+				SELECT InvoiceNumber
+				FROM PurchaseOrderReceiving por
+				WHERE PurchaseOrderReceivingFK = por.PurchaseOrderReceivingPK
+				), '')Invoice,
+	StockLength,
+	VendorUnit,
+	Quantity,
+	QuantityOrdered,
+	ComponentCost,
+	Price,
+	Minimum,
+	SalesTax1Amount,
+	SalesTax2Amount,
+	SalesTax3Amount,
+	SalesTax4Amount,
+	ExtendedAmount,
+	ForeignCurrencyPrice,
+	ForeignCurrencyMiscellaneousAmount1,
+	ForeignCurrencyMiscellaneousAmount2,
+	ForeignCurrencyMiscellaneousAmount3,
+	ForeignCurrencyTotalMiscellaneousAmount,
+	ForeignCurrencySalesTax1Amount,	
+	ForeignCurrencySalesTax2Amount,
+	ForeignCurrencySalesTax3Amount,
+	ForeignCurrencySalesTax4Amount,
+	ForeignCurrencyExtendedAmount,
+	ExtendedAmountConfirmed,
+	LandedCost,
+	InspectComment,
+	RejectComment,
+	Comment,
+	NotifyComment,
+	CustomDescription,
+	CustomCheckBox1,
+	CustomCheckBox2,
+	CustomCheckBox3,
+	SalesTax1Name,
+	SalesTax1Rate,
+	SalesTaxType1Description,
+	SalesTax2Name,
+	SalesTax2Rate,
+	SalesTaxType2Description,
+	SalesTax3Name,
+	SalesTax3Rate,
+	SalesTaxType3Description,
+	SalesTax4Name,
+	SalesTax4Rate,
+	SalesTaxType4Description,
+	QuantityInvoiced,
+	Thickness,
+	MachineFK
+
+	FROM inserted;
+
+	OPEN PurchaseOrderReceiving_Cursor;
+	
+	FETCH NEXT
+	FROM PurchaseOrderReceiving_Cursor
+	INTO
+
+	@PurchaseOrderReceivingLinePK,
+	@PurchaseOrderReceivingFK,
+	@Item,
+	@UnitOfMeasureSetFK,
+	@GeneralLedgerAccountFK,
+	@InspectorFK,
+	@PurchaseOrderLineFK,
+	@PurchaseOrderReceivingLineStatusFK,
+	@PurchaseOrderNumber,
+	@ItemInventoryLocationFK,
+	@Vendor,
+	@LineReferenceNumber,
+	@ParentLineReferenceNumber,
+	@CertificationsRequired,
+	@GotCertificate,
+	@Inspected,
+	@InspectionRequired,
+	@LotPrice,
+	@MakeFromItem,
+	@Posted,
+	@PurchaseToJob,
+	@Rejected,
+	@Taxable,
+	@PopupNotifyComment,
+	@RequiresInspection,
+	@ClosePOLine,
+	@DueDate,
+	@ReceiveDate,
+	@ConfirmDate,
+	@PostDate,
+	@InspectedDate,
+	@ExpirationDate,
+	@BatchNumber,
+	@Revision,
+	@Description,
+	@LotNumber,
+	@LocationDescription,
+	@PartNumber,
+	@SerialNumber,
+	@VendorPartNumber,
+	@EmployeeName,
+	@Memo,
+	@WeightPerPiece,
+	@QuantityInspected,
+	@QuantityNotAccepted,
+	@PartWidth,
+	@PartLength,
+	@Invoice,
+	@StockLength,
+	@VendorUnit,
+	@Quantity,
+	@QuantityOrdered,
+	@ComponentCost,
+	@Price,
+	@Minimum,
+	@SalesTax1Amount,
+	@SalesTax2Amount,
+	@SalesTax3Amount,
+	@SalesTax4Amount,
+	@ExtendedAmount,
+	@ForeignCurrencyPrice,
+	@ForeignCurrencyMiscellaneousAmount1,
+	@ForeignCurrencyMiscellaneousAmount2,
+	@ForeignCurrencyMiscellaneousAmount3,
+	@ForeignCurrencyTotalMiscellaneousAmount,
+	@ForeignCurrencySalesTax1Amount,	
+	@ForeignCurrencySalesTax2Amount,
+	@ForeignCurrencySalesTax3Amount,
+	@ForeignCurrencySalesTax4Amount,
+	@ForeignCurrencyExtendedAmount,
+	@ExtendedAmountConfirmed,
+	@LandedCost,
+	@InspectComment,
+	@RejectComment,
+	@Comment,
+	@NotifyComment,
+	@CustomDescription,
+	@CustomCheckBox1,
+	@CustomCheckBox2,
+	@CustomCheckBox3,
+	@SalesTax1Name,
+	@SalesTax1Rate,
+	@SalesTaxType1Description,
+	@SalesTax2Name,
+	@SalesTax2Rate,
+	@SalesTaxType2Description,
+	@SalesTax3Name,
+	@SalesTax3Rate,
+	@SalesTaxType3Description,
+	@SalesTax4Name,
+	@SalesTax4Rate,
+	@SalesTaxType4Description,
+	@QuantityInvoiced,
+	@Thickness,
+	@MachineFK;
+
+	WHILE (@@FETCH_STATUS = 0)
+	IF @ReceiveDate IS NOT NULL
+	BEGIN
+	SET @FullSubject = 'PO '+ISNULL(CONVERT(NVARCHAR(MAX), @PurchaseOrderNumber), '')+ ' received from '+ISNULL(@Vendor, 'None');
+	SET @FullDescription = 'Vendor: '+ISNULL(@Vendor, 'None')+CHAR(10)+CHAR(13)+'Purchase Order Number: '+ISNULL(CONVERT(NVARCHAR(MAX), @PurchaseOrderNumber), '')+CHAR(10)+CHAR(13)+'Part Number: '+ISNULL(@PartNumber, 'None')+CHAR(10)+CHAR(13)+'Invoice: '+ISNULL(@Invoice, 'None')+CHAR(10)+CHAR(13)+'Item: '+ISNULL(@Item, 'None')+CHAR(10)+CHAR(13)+'Description: '+ISNULL(@Description, 'None')+CHAR(10)+CHAR(13)+'Purchase Order Line No: '+ISNULL(CONVERT(NVARCHAR(MAX), @LineReferenceNumber), '')+CHAR(10)+CHAR(13)+ 'PO Receiver: '+ISNULL(CONVERT(NVARCHAR(MAX), @PurchaseOrderReceivingFK), '')+CHAR(10)+CHAR(13)+'Receive Date: '+ISNULL(FORMAT(@ReceiveDate, 'D', 'en-US'),'')+CHAR(10)+CHAR(13)+'Quantity: '+ISNULL(CONVERT(NVARCHAR(MAX),@Quantity),'');
+
+
+	FETCH NEXT
+	FROM PurchaseOrderReceiving_Cursor
+	INTO
+
+	@PurchaseOrderReceivingLinePK,
+	@PurchaseOrderReceivingFK,
+	@Item,
+	@UnitOfMeasureSetFK,
+	@GeneralLedgerAccountFK,
+	@InspectorFK,
+	@PurchaseOrderLineFK,
+	@PurchaseOrderReceivingLineStatusFK,
+	@PurchaseOrderNumber,
+	@ItemInventoryLocationFK,
+	@Vendor,
+	@LineReferenceNumber,
+	@ParentLineReferenceNumber,
+	@CertificationsRequired,
+	@GotCertificate,
+	@Inspected,
+	@InspectionRequired,
+	@LotPrice,
+	@MakeFromItem,
+	@Posted,
+	@PurchaseToJob,
+	@Rejected,
+	@Taxable,
+	@PopupNotifyComment,
+	@RequiresInspection,
+	@ClosePOLine,
+	@DueDate,
+	@ReceiveDate,
+	@ConfirmDate,
+	@PostDate,
+	@InspectedDate,
+	@ExpirationDate,
+	@BatchNumber,
+	@Revision,
+	@Description,
+	@LotNumber,
+	@LocationDescription,
+	@PartNumber,
+	@SerialNumber,
+	@VendorPartNumber,
+	@EmployeeName,
+	@Memo,
+	@WeightPerPiece,
+	@QuantityInspected,
+	@QuantityNotAccepted,
+	@PartWidth,
+	@PartLength,
+	@Invoice,
+	@StockLength,
+	@VendorUnit,
+	@Quantity,
+	@QuantityOrdered,
+	@ComponentCost,
+	@Price,
+	@Minimum,
+	@SalesTax1Amount,
+	@SalesTax2Amount,
+	@SalesTax3Amount,
+	@SalesTax4Amount,
+	@ExtendedAmount,
+	@ForeignCurrencyPrice,
+	@ForeignCurrencyMiscellaneousAmount1,
+	@ForeignCurrencyMiscellaneousAmount2,
+	@ForeignCurrencyMiscellaneousAmount3,
+	@ForeignCurrencyTotalMiscellaneousAmount,
+	@ForeignCurrencySalesTax1Amount,	
+	@ForeignCurrencySalesTax2Amount,
+	@ForeignCurrencySalesTax3Amount,
+	@ForeignCurrencySalesTax4Amount,
+	@ForeignCurrencyExtendedAmount,
+	@ExtendedAmountConfirmed,
+	@LandedCost,
+	@InspectComment,
+	@RejectComment,
+	@Comment,
+	@NotifyComment,
+	@CustomDescription,
+	@CustomCheckBox1,
+	@CustomCheckBox2,
+	@CustomCheckBox3,
+	@SalesTax1Name,
+	@SalesTax1Rate,
+	@SalesTaxType1Description,
+	@SalesTax2Name,
+	@SalesTax2Rate,
+	@SalesTaxType2Description,
+	@SalesTax3Name,
+	@SalesTax3Rate,
+	@SalesTaxType3Description,
+	@SalesTax4Name,
+	@SalesTax4Rate,
+	@SalesTaxType4Description,
+	@QuantityInvoiced,
+	@Thickness,
+	@MachineFK;
+
+	IF LEN(@FullSubject) > 0
+			BEGIN
+			  EXECUTE msdb.dbo.sp_send_dbmail @profile_name = 'PO Receiving MIE Alert'
+			 ,@recipients = @Email
+			 ,@Subject = @FullSubject
+			 ,@Body = @FullDescription;
+		        END;
+END;
+ELSE
+BEGIN
+
+			FETCH NEXT
+	FROM PurchaseOrderReceiving_Cursor
+	INTO
+
+	@PurchaseOrderReceivingLinePK,
+	@PurchaseOrderReceivingFK,
+	@Item,
+	@UnitOfMeasureSetFK,
+	@GeneralLedgerAccountFK,
+	@InspectorFK,
+	@PurchaseOrderLineFK,
+	@PurchaseOrderReceivingLineStatusFK,
+	@PurchaseOrderNumber,
+	@ItemInventoryLocationFK,
+	@Vendor,
+	@LineReferenceNumber,
+	@ParentLineReferenceNumber,
+	@CertificationsRequired,
+	@GotCertificate,
+	@Inspected,
+	@InspectionRequired,
+	@LotPrice,
+	@MakeFromItem,
+	@Posted,
+	@PurchaseToJob,
+	@Rejected,
+	@Taxable,
+	@PopupNotifyComment,
+	@RequiresInspection,
+	@ClosePOLine,
+	@DueDate,
+	@ReceiveDate,
+	@ConfirmDate,
+	@PostDate,
+	@InspectedDate,
+	@ExpirationDate,
+	@BatchNumber,
+	@Revision,
+	@Description,
+	@LotNumber,
+	@LocationDescription,
+	@PartNumber,
+	@SerialNumber,
+	@VendorPartNumber,
+	@EmployeeName,
+	@Memo,
+	@WeightPerPiece,
+	@QuantityInspected,
+	@QuantityNotAccepted,
+	@PartWidth,
+	@PartLength,
+	@Invoice,
+	@StockLength,
+	@VendorUnit,
+	@Quantity,
+	@QuantityOrdered,
+	@ComponentCost,
+	@Price,
+	@Minimum,
+	@SalesTax1Amount,
+	@SalesTax2Amount,
+	@SalesTax3Amount,
+	@SalesTax4Amount,
+	@ExtendedAmount,
+	@ForeignCurrencyPrice,
+	@ForeignCurrencyMiscellaneousAmount1,
+	@ForeignCurrencyMiscellaneousAmount2,
+	@ForeignCurrencyMiscellaneousAmount3,
+	@ForeignCurrencyTotalMiscellaneousAmount,
+	@ForeignCurrencySalesTax1Amount,	
+	@ForeignCurrencySalesTax2Amount,
+	@ForeignCurrencySalesTax3Amount,
+	@ForeignCurrencySalesTax4Amount,
+	@ForeignCurrencyExtendedAmount,
+	@ExtendedAmountConfirmed,
+	@LandedCost,
+	@InspectComment,
+	@RejectComment,
+	@Comment,
+	@NotifyComment,
+	@CustomDescription,
+	@CustomCheckBox1,
+	@CustomCheckBox2,
+	@CustomCheckBox3,
+	@SalesTax1Name,
+	@SalesTax1Rate,
+	@SalesTaxType1Description,
+	@SalesTax2Name,
+	@SalesTax2Rate,
+	@SalesTaxType2Description,
+	@SalesTax3Name,
+	@SalesTax3Rate,
+	@SalesTaxType3Description,
+	@SalesTax4Name,
+	@SalesTax4Rate,
+	@SalesTaxType4Description,
+	@QuantityInvoiced,
+	@Thickness,
+	@MachineFK;
+
+	END;
+			CLOSE PurchaseOrderReceiving_Cursor;
+			
+			DEALLOCATE PurchaseOrderReceiving_Cursor;
+END;

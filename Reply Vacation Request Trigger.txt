@@ -1,0 +1,100 @@
+--REPLY VACATION REQUEST TRIGGER
+
+CREATE OR ALTER TRIGGER [dbo].[Trg_Alert_ApprovedVacation_Request] ON [dbo].[VacationRequest] AFTER INSERT, UPDATE
+AS
+BEGIN
+	SET NOCOUNT ON;
+	DECLARE @Approved BIT;
+	DECLARE @VacationRequestPK INT;
+	DECLARE @Name NVARCHAR(500);
+	DECLARE @EmployeeFK INT;
+	DECLARE @TimeClockEntryTypeFK NVARCHAR(500);
+	DECLARE @FromDate DATETIME;
+	DECLARE @ToDate DATETIME;
+	DECLARE @StartTime DATETIME;
+	DECLARE @Hours DATETIME;
+	DECLARE @Reason NVARCHAR(500);
+	DECLARE @FullSubject NVARCHAR(500);
+	DECLARE @FullDescription NVARCHAR(1000);
+	DECLARE @ApprovedEmails NVARCHAR(500);
+
+	SET @FullSubject = '';
+	SET @FullDescription = '';
+	DECLARE InsertedVacation_Cursor3 CURSOR LOCAL
+	FOR
+	SELECT	VacationRequestPK
+		,EmployeeFK
+		,TimeClockEntryTypeFK
+		,FromDate
+		,ToDate
+		,StartTime
+		,Hours
+		,Reason
+		,Approved
+	FROM inserted;
+
+	OPEN InsertedVacation_Cursor3;
+
+	FETCH NEXT
+	FROM InsertedVacation_Cursor3
+	INTO @VacationRequestPK
+		,@EmployeeFK
+		,@TimeClockEntryTypeFK
+		,@FromDate
+		,@ToDate
+		,@StartTime
+		,@Hours
+		,@Reason
+		,@Approved;
+
+WHILE (@@FETCH_STATUS = 0)
+	IF @Approved = 1
+BEGIN
+                SET @ApprovedEmails=
+(
+                SELECT Email
+                FROM [User]
+                WHERE UserPK = @EmployeeFK
+);
+
+                SET @FullSubject = 'Status of your Vacation Request';
+                SET @FullDescription = 'Your vacation request from ' + ISNULL(FORMAT(@FromDate, 'D', 'en-US'), '')+ ' to ' + ISNULL(FORMAT(@ToDate, 'D', 'en-US'), 'No End Date')+ ' has been approved';
+
+	  FETCH NEXT
+	  FROM InsertedVacation_Cursor3
+	  INTO @VacationRequestPK
+		,@EmployeeFK
+		,@TimeClockEntryTypeFK
+		,@FromDate
+		,@ToDate
+		,@StartTime
+		,@Hours
+		,@Reason
+		,@Approved;
+
+                IF LEN(@FullSubject) > 0
+                   BEGIN
+                                EXECUTE msdb.dbo.sp_send_dbmail
+                                @profile_name = 'Vacation Request MIE Alert',
+                                @recipients = @ApprovedEmails,
+                                @Subject = @FullSubject,
+                                @Body = @FullDescription;
+                   END;
+END;
+ELSE
+BEGIN
+	FETCH NEXT
+	FROM InsertedVacation_Cursor3
+	INTO @VacationRequestPK
+		,@EmployeeFK
+		,@TimeClockEntryTypeFK
+		,@FromDate
+		,@ToDate
+		,@StartTime
+		,@Hours
+		,@Reason
+		,@Approved;
+END;
+CLOSE InsertedVacation_Cursor3;
+DEALLOCATE InsertedVacation_Cursor3;
+END;

@@ -1,0 +1,107 @@
+CREATE OR ALTER  TRIGGER [dbo].[Trg_Alert_ECR_Request] ON [dbo].[EngineeringChangeRequest] FOR INSERT AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @Programmingrecipients NVARCHAR(500)= 'Programming@etezazicorps.com;Quality@etezazicorps.com';
+    DECLARE @Planningrecipients NVARCHAR(500)= 'Stephane.Ayangma@etezazicorps.com;Amir.Etezazi@etezazicorps.com';
+    --DECLARE @Qualitygrecipients NVARCHAR(500)= 'Quality@etezazicorps.com';
+       DECLARE @ShippingRecipients NVARCHAR(500) = 'Aaron.Creech@etezazicorps.com;crm@etezazicorps.com';
+       DECLARE @EngineeringRecipients NVARCHAR(500) = 'Engineering@etezazicorps.com;Quality@etezazicorps.com';
+    --DECLARE @Email NVARCHAR(500) = 'Vimanga.Umange@etezazicorps.com';
+    DECLARE @ECRType NVARCHAR(100);
+    DECLARE @Customer NVARCHAR(250);
+    DECLARE @RequestedBy NVARCHAR(150);
+    DECLARE @SalesOrderNumber NVARCHAR(50);
+    DECLARE @WorkOrderNumber NVARCHAR(50);
+    DECLARE @RouterNumber NVARCHAR(50);
+    DECLARE @PartNumber NVARCHAR(250);
+    DECLARE @Revision NVARCHAR(20);
+    DECLARE @EngineeringChangeRequestPK INT;
+    DECLARE @Description NVARCHAR(250);
+    DECLARE @DateRequested DATETIME;
+    DECLARE @Comment NVARCHAR(500);
+    DECLARE @FullSubject NVARCHAR(500);
+    DECLARE @FullDescription NVARCHAR(500);
+    SET @FullSubject = '';
+    SET @FullDescription = '';
+    DECLARE InsertedECR_Cursor CURSOR LOCAL
+    FOR SELECT 
+	EngineeringChangeRequestPK,	
+	ISNULL(
+        (
+            SELECT Name
+            FROM Party
+            WHERE PartyPK = CustomerFK
+        ), '')Customer,
+ 
+               ISNULL(
+        (
+            SELECT FirstName + ' ' + LastName
+            FROM [User]
+            WHERE UserPK = RequestedByFK
+        ), '')RequestedBy,
+	SalesOrderNumber,
+	WorkOrderNumber,
+	RouterNumber,
+	PartNumber,
+	Revision,
+	Description,
+	DateRequested,
+	Comment,
+               ISNULL(
+        (
+            SELECT Description
+            FROM EngineeringChangeRequestType
+            WHERE EngineeringChangeRequestTypePK = EngineeringChangeRequestTypeFK
+        ), '')ECRType
+        FROM inserted;
+    OPEN InsertedECR_Cursor;
+    FETCH NEXT FROM InsertedECR_Cursor INTO @EngineeringChangeRequestPK, @Customer, @RequestedBy, @SalesOrderNumber, @WorkOrderNumber, @RouterNumber, @PartNumber, @Revision, @Description, @DateRequested, @Comment, @ECRType;
+    WHILE(@@FETCH_STATUS = 0)
+        BEGIN
+            SET @FullSubject = 'ECR request for '+ISNULL(@ECRType, '')+' was created by '+ISNULL(@RequestedBy, '');  
+            SET @FullDescription = 'ECR Number: '+ISNULL(CONVERT(NVARCHAR(MAX), @EngineeringChangeRequestPK), '')+CHAR(10)+CHAR(13)+'Requested at: ' +ISNULL(FORMAT(@DateRequested, 'D', 'en-US'),'')+CHAR(10)+CHAR(13)+'Requested by: ' +ISNULL(@RequestedBy,'')+CHAR(10)+CHAR(13)+ 'Part Number: ' +ISNULL(@PartNumber,'')+CHAR(10)+CHAR(13)+ 'Revision: ' +ISNULL(@Revision,'')+CHAR(10)+CHAR(13)+ 'Item Description: ' +ISNULL(@Description,'')+ CHAR(10) + CHAR(13) + 'Router Number: ' +ISNULL(@RouterNumber,'')+ CHAR(10) + CHAR(13) + 'Work Order Number: ' +ISNULL(@WorkOrderNumber,'') + CHAR(10) + CHAR(13) + 'Comments: ' +ISNULL(@Comment,'');
+            FETCH NEXT FROM InsertedECR_Cursor INTO @EngineeringChangeRequestPK, @Customer, @RequestedBy, @SalesOrderNumber, @WorkOrderNumber, @RouterNumber, @PartNumber, @Revision, @Description, @DateRequested, @Comment, @ECRType;
+            End;
+	    IF LEN(@FullSubject) > 0
+                BEGIN
+                    IF(@ECRType = 'PROGRAMMING CHANGE REQUEST')
+                        BEGIN
+                            EXECUTE msdb.dbo.sp_send_dbmail 
+                                    @profile_name = 'MIE Notifications', 
+                                    @recipients = @Programmingrecipients,  
+                                    @Subject = @FullSubject, 
+                                    @Body = @FullDescription;
+                    END;
+                        ELSE
+                        IF(@ECRType = 'PLANNING CHANGE REQUEST')
+                            BEGIN
+                                EXECUTE msdb.dbo.sp_send_dbmail 
+                                        @profile_name = 'MIE Notifications', 
+                                        @recipients = @Planningrecipients, 
+                                        @Subject = @FullSubject, 
+                                        @Body = @FullDescription;
+                        END;
+                            ELSE
+                            IF(@ECRType = 'REQUEST CUSTOMER FOR ADDL INFO')
+                                BEGIN
+                                    EXECUTE msdb.dbo.sp_send_dbmail 
+                                            @profile_name = 'MIE Notifications', 
+                                            @recipients = @ShippingRecipients, 
+                                            @Subject = @FullSubject, 
+                                            @Body = @FullDescription;
+                            END;
+		  ELSE
+		   IF(@ECRType = 'ENGINEERING CHANGE REQUEST')
+		BEGIN
+			 EXECUTE msdb.dbo.sp_send_dbmail 
+                                            @profile_name = 'MIE Notifications', 
+                                            @recipients = @EngineeringRecipients, 
+                                            @Subject = @FullSubject, 
+                                            @Body = @FullDescription;
+		END;
+                                
+            END;
+        
+    CLOSE InsertedECR_Cursor;
+    DEALLOCATE InsertedECR_Cursor;
+END;

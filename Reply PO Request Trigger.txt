@@ -1,0 +1,197 @@
+--REPLY POREQUEST TRIGGER
+
+CREATE OR ALTER TRIGGER [dbo].[Trg_Purchase_Order_Request] ON [dbo].[PurchaseOrderRequest] FOR INSERT, UPDATE AS
+BEGIN
+	SET NOCOUNT ON;
+	DECLARE @Buyer NVARCHAR(500);
+	DECLARE @ItemDes NVARCHAR(500);
+	DECLARE @Requester NVARCHAR(500);
+	DECLARE @PurchaseOrderRequestPK INT;
+	DECLARE @DivisionFK INT;
+	DECLARE @ItemFK INT;
+	DECLARE @ApprovedByFK INT;
+	DECLARE @RequestedByFK INT;
+	DECLARE @BuyerAssignedFK INT;
+	DECLARE @StatusFK INT;
+	DECLARE @PurchaseOrderNumber NVARCHAR(500);
+	DECLARE @JobNumber INT;
+	DECLARE @CreateDate DATETIME;
+	DECLARE @DateApproved DATETIME;
+	DECLARE @DueByDate DATETIME;
+	DECLARE @RequestDate DATETIME;
+	DECLARE @QuantityRequested INT;
+	DECLARE @QuantityApproved INT;
+	DECLARE @Price INT;
+	DECLARE @CustomDescription NVARCHAR(500);
+	DECLARE @ReasonNeed NVARCHAR(500);
+	DECLARE @Comment NVARCHAR(500);
+	DECLARE @RequiresApproval BIT;
+	DECLARE @Approved BIT;
+	DECLARE @Urgent BIT;
+	DECLARE @ApprovedDate DATETIME;
+	DECLARE @RequestDeniedDate DATETIME;
+	DECLARE @ProjectFK INT;
+	DECLARE @ProjectPhaseFK INT;
+	DECLARE @FullSubject NVARCHAR(500);
+	DECLARE @FullDescription NVARCHAR(500);
+	DECLARE @Emails NVARCHAR(500);
+	DECLARE @Aprovee NVARCHAR(500);
+	DECLARE InsertedPORequest_Cursor CURSOR LOCAL
+	FOR SELECT
+	PurchaseOrderRequestPK,
+	DivisionFK,
+	ItemFK,
+	ApprovedByFK,
+	RequestedByFK,
+	BuyerAssignedFK,
+	StatusFK,
+	PurchaseOrderNumber,
+	JobNumber,
+	CreateDate,
+	DateApproved,
+	DueByDate,
+	RequestDate,
+	QuantityRequested,
+	QuantityApproved,
+	Price,
+	CustomDescription,
+	ReasonNeed,
+	Comment,
+	RequiresApproval,
+	Approved,
+	Urgent,
+	ApprovedDate,
+	RequestDeniedDate,
+	ProjectFK,
+	ProjectPhaseFK
+	FROM inserted;
+	OPEN InsertedPORequest_Cursor;
+
+	FETCH NEXT FROM InsertedPORequest_Cursor INTO 
+	@PurchaseOrderRequestPK,
+	@DivisionFK,
+	@ItemFK,
+	@ApprovedByFK,
+	@RequestedByFK,
+	@BuyerAssignedFK,
+	@StatusFK,
+	@PurchaseOrderNumber,
+	@JobNumber,
+	@CreateDate,
+	@DateApproved,
+	@DueByDate,
+	@RequestDate,
+	@QuantityRequested,
+	@QuantityApproved,
+	@Price,
+	@CustomDescription,
+	@ReasonNeed,
+	@Comment,
+	@RequiresApproval,
+	@Approved,
+	@Urgent,
+	@ApprovedDate,
+	@RequestDeniedDate,
+	@ProjectFK,
+	@ProjectPhaseFK;
+	WHILE(@@FETCH_STATUS = 0)
+		IF @DateApproved IS NOT NULL OR @StatusFK = 2 OR @StatusFK = 4
+		BEGIN
+			
+			SET @Emails = (
+					SELECT Email
+					FROM [User]
+					WHERE UserPK = @RequestedByFK
+				      );
+			SET @Buyer = (
+					SELECT FirstName+' '+LastName
+					FROM [User]
+					WHERE UserPK = @BuyerAssignedFK
+				     );
+			SET @ItemDes = (
+					SELECT Description
+					FROM Item
+					WHERE ItemPK = @ItemFK
+				   	);
+			SET @Aprovee = (
+					SELECT FirstName+' '+LastName
+					FROM [User]
+					WHERE UserPK = @ApprovedByFK
+					);
+					
+			SET @FullSubject = 'UPDATE ON YOUR PO REQUEST ';
+			SET @FullDescription = 'PO Request Number: '+CONVERT(NVARCHAR(MAX), @PurchaseOrderRequestPK)+' FOR '+ISNULL(@ItemDes,'')+' has been approved by '+ISNULL(@Aprovee, '')+' and assigned to '+ISNULL(@Buyer, '')+' for purchase';
+
+			FETCH NEXT FROM InsertedPORequest_Cursor
+			INTO 
+			@PurchaseOrderRequestPK,
+			@DivisionFK,
+			@ItemFK,
+			@ApprovedByFK,
+			@RequestedByFK,
+			@BuyerAssignedFK,
+			@StatusFK,
+			@PurchaseOrderNumber,
+			@JobNumber,
+			@CreateDate,
+			@DateApproved,
+			@DueByDate,
+			@RequestDate,
+			@QuantityRequested,
+			@QuantityApproved,
+			@Price,
+			@CustomDescription,
+			@ReasonNeed,
+			@Comment,
+			@RequiresApproval,
+			@Approved,
+			@Urgent,
+			@ApprovedDate,
+			@RequestDeniedDate,
+			@ProjectFK,
+			@ProjectPhaseFK;
+			
+			IF LEN(@FullSubject) > 0
+				BEGIN
+					EXECUTE msdb.dbo.sp_send_dbmail @profile_name = 'PO Request MIE Alert'
+					,@recipients = @Emails
+					,@Subject = @FullSubject
+					,@Body = @FullDescription;
+				END;
+			END;
+			ELSE
+			BEGIN
+				FETCH NEXT FROM InsertedPORequest_Cursor
+				INTO 
+				@PurchaseOrderRequestPK,
+				@DivisionFK,
+				@ItemFK,
+				@ApprovedByFK,
+				@RequestedByFK,
+				@BuyerAssignedFK,
+				@StatusFK,
+				@PurchaseOrderNumber,
+				@JobNumber,
+				@CreateDate,
+				@DateApproved,
+				@DueByDate,
+				@RequestDate,
+				@QuantityRequested,
+				@QuantityApproved,
+				@Price,
+				@CustomDescription,
+				@ReasonNeed,
+				@Comment,
+				@RequiresApproval,
+				@Approved,
+				@Urgent,
+				@ApprovedDate,
+				@RequestDeniedDate,
+				@ProjectFK,
+				@ProjectPhaseFK;
+			END;
+
+			CLOSE InsertedPORequest_Cursor;
+			
+			DEALLOCATE InsertedPORequest_Cursor;
+END;

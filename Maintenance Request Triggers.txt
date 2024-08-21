@@ -1,0 +1,160 @@
+--MAINTENANCE REQUEST TRIGGERS
+
+CREATE OR ALTER TRIGGER [dbo].[Trg_Alert_Maintenance_Request] ON [dbo].[MachineMaintenanceScheduleRequest] AFTER INSERT AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @recipients NVARCHAR(500)= 'Purchasing@etezazicorps.com;Vimanga.Umange@etezazicorps.com';
+    DECLARE @recipients1 NVARCHAR(500) = 'amir.etezazi@etezazicorps.com;vimanga.umange@etezazicorps.com';
+    DECLARE @recipients2 NVARCHAR(500) = 'Purchasing@etezazicorps.com;vimanga.umange@etezazicorps.com';
+    DECLARE @MachineName NVARCHAR(250);
+    DECLARE @Creator NVARCHAR(150);
+    DECLARE @FailureType NVARCHAR(250);
+    DECLARE @MachineMaintenancePriority NVARCHAR(150);
+    DECLARE @Code NVARCHAR(50);
+    DECLARE @Name NVARCHAR(50);
+    DECLARE @Description NVARCHAR(500);
+    DECLARE @CauseNotes NVARCHAR(500);
+    DECLARE @CreatedDateTime DATETIME;
+    DECLARE @NeededByDate DATETIME;
+    DECLARE @MachineMaintenanceScheduleTypeFK NVARCHAR(500);
+    DECLARE @FullSubject NVARCHAR(500);
+    DECLARE @FullDescription NVARCHAR(500);
+    SET @FullSubject = '';
+    SET @FullDescription = '';
+    DECLARE InsertedMaintenance_Cursor CURSOR LOCAL
+    FOR SELECT ISNULL(
+        (
+            SELECT MachineDescription
+            FROM Machine
+            WHERE MachinePK = MachineFK
+        ), '')MachineName, 
+               ISNULL(
+        (
+            SELECT FirstName + ' ' + LastName
+            FROM [User]
+            WHERE UserPK = CreatorFK
+        ), '')Creator, 
+               ISNULL(
+        (
+            SELECT Description
+            FROM FailureType
+            WHERE FailureTypePK = FailureTypeFK
+        ), '')FailureType, 
+               ISNULL(
+        (
+            SELECT Description
+            FROM MachineMaintenancePriority
+            WHERE MachineMaintenancePriorityPK = MachineMaintenancePriorityFK
+        ), '')MachineMaintenancePriority,
+	Description,
+	Code,
+	Name,	
+	CauseNotes,
+	CreateDateTime,
+	NeededByDate,
+	MachineMaintenanceScheduleTypeFK	 
+        FROM inserted;
+    OPEN InsertedMaintenance_Cursor;
+    FETCH NEXT FROM InsertedMaintenance_Cursor INTO @MachineName, @Creator, @FailureType, @MachineMaintenancePriority, @Code, @Name, @Description, @CauseNotes, @CreatedDateTime, @NeededByDate, @MachineMaintenanceScheduleTypeFK;
+    WHILE(@@FETCH_STATUS = 0)
+       	IF @MachineMaintenanceScheduleTypeFK = 24
+	BEGIN
+            SET @FullSubject = 'MACHINE CRASH maintenance request created for '+@MachineName;
+            SET @FullDescription = 'MACHINE MAINTENANCE REQUEST FOR MACHINE CRASH'+CHAR(10)+CHAR(13)+CHAR(10)+CHAR(13)+'Created on: '+ISNULL(FORMAT(@CreatedDateTime,'D','en-US'),'')+CHAR(10)+CHAR(13)+'Creator: '+ISNULL(@Creator, '')+CHAR(10)+CHAR(13)+'Machine Name: '+ISNULL(@MachineName, '')+CHAR(10)+CHAR(13)+'Priority: '+ISNULL(@MachineMaintenancePriority, '')+CHAR(10)+CHAR(13)+'Code: '+ISNULL(@Code, '')+CHAR(10)+CHAR(13)+'Description: '+ISNULL(@Description,'')+CHAR(10)+CHAR(13)+'Notes: '+ISNULL(@CauseNotes,'')+CHAR(10)+CHAR(13)+'Needed By: '+ISNULL(FORMAT(@NeededByDate, 'D', 'en-US'),'');
+	    FETCH NEXT FROM InsertedMaintenance_Cursor INTO @MachineName, @Creator, @FailureType, @MachineMaintenancePriority, @Code, @Name, @Description, @CauseNotes, @CreatedDateTime, @NeededByDate, @MachineMaintenanceScheduleTypeFK;
+		  IF LEN(@FullSubject) > 0
+                BEGIN
+                    EXECUTE msdb.dbo.sp_send_dbmail
+                            @profile_name = 'MIE Notifications',
+                            @recipients = @recipients1,
+                            @Subject = @FullSubject,
+                            @Body = @FullDescription;
+                END;
+		END;
+ELSE
+	IF @MachineMaintenanceScheduleTypeFK = 9
+	 BEGIN
+            SET @FullSubject = 'TOOL BREAK maintenance request created for '+@MachineName;
+            SET @FullDescription = 'MACHINE MAINTENANCE REQUEST FOR CUTTING TOOL BREAK'+CHAR(10)+CHAR(13)+CHAR(10)+CHAR(13)+'Created on: '+ISNULL(FORMAT(@CreatedDateTime,'D','en-US'),'')+CHAR(10)+CHAR(13)+'Creator: '+ISNULL(@Creator, '')+CHAR(10)+CHAR(13)+'Machine Name: '+ISNULL(@MachineName, '')+CHAR(10)+CHAR(13)+'Priority: '+ISNULL(@MachineMaintenancePriority, '')+CHAR(10)+CHAR(13)+'Code: '+ISNULL(@Code, '')+CHAR(10)+CHAR(13)+'Description: '+ISNULL(@Description,'')+CHAR(10)+CHAR(13)+'Notes: '+ISNULL(@CauseNotes, '')+CHAR(10)+CHAR(13)+'Needed By: '+ISNULL(FORMAT(@NeededByDate, 'D', 'en-US'),'');
+	     FETCH NEXT FROM InsertedMaintenance_Cursor INTO @MachineName, @Creator, @FailureType, @MachineMaintenancePriority, @Code, @Name, @Description, @CauseNotes, @CreatedDateTime, @NeededByDate, @MachineMaintenanceScheduleTypeFK;		
+		IF LEN(@FullSubject) > 0
+                BEGIN
+                    EXECUTE msdb.dbo.sp_send_dbmail
+                            @profile_name = 'MIE Notifications',
+                            @recipients = @recipients2,
+                            --@copy_recipients = @copy_recipients,
+                            @Subject = @FullSubject,
+                            @Body = @FullDescription;
+		END;
+	END;
+ELSE
+	IF @MachineMaintenanceScheduleTypeFK = 37
+	BEGIN
+            SET @FullSubject = 'TOOL REQUEST maintenance request created for '+@MachineName;
+            SET @FullDescription = 'MACHINE MAINTENANCE REQUEST FOR CUTTING TOOL REQUEST'+CHAR(10)+CHAR(13)+CHAR(10)+CHAR(13)+'Created on: '+ISNULL(FORMAT(@CreatedDateTime,'D','en-US'),'')+CHAR(10)+CHAR(13)+'Creator: '+ISNULL(@Creator, '')+CHAR(10)+CHAR(13)+'Machine Name: '+ISNULL(@MachineName, '')+CHAR(10)+CHAR(13)+'Priority: '+ISNULL(@MachineMaintenancePriority, '')+CHAR(10)+CHAR(13)+'Code: '+ISNULL(@Code, '')+CHAR(10)+CHAR(13)+'Description: '+ISNULL(@Description,'')+CHAR(10)+CHAR(13)+'Notes: '+ISNULL(@CauseNotes, '')+CHAR(10)+CHAR(13)+'Needed By: '+ISNULL(FORMAT(@NeededByDate, 'D', 'en-US'),'');
+	     FETCH NEXT FROM InsertedMaintenance_Cursor INTO @MachineName, @Creator, @FailureType, @MachineMaintenancePriority, @Code, @Name, @Description, @CauseNotes, @CreatedDateTime, @NeededByDate, @MachineMaintenanceScheduleTypeFK;		
+		IF LEN(@FullSubject) > 0
+                BEGIN
+                    EXECUTE msdb.dbo.sp_send_dbmail
+                            @profile_name = 'MIE Notifications',
+                            @recipients = @recipients2,
+                            --@copy_recipients = @copy_recipients,
+                            @Subject = @FullSubject,
+                            @Body = @FullDescription;
+		END;
+	END;
+ELSE
+	 BEGIN
+            SET @FullSubject = 'Maintenance request created for ' + @MachineName;
+            SET @FullDescription = 'Created on: ' +ISNULL(FORMAT(@CreatedDateTime, 'D', 'en-US'),'')+ CHAR(10) + CHAR(13) + 'Creator: ' + ISNULL(@Creator, '') + CHAR(10) + CHAR(13) + 'Machine Name: ' + ISNULL(@MachineName, '') + CHAR(10) + CHAR(13) + 'Priority: ' + ISNULL(@MachineMaintenancePriority,'') + CHAR(10) + CHAR(13) + 'Code: ' + ISNULL(@Code,'') + CHAR(10) + CHAR(13) + 'Description: ' + ISNULL(@Description,'') + CHAR(10) + CHAR(13) + 'Notes: ' + ISNULL(@CauseNotes,'') + CHAR(10) + CHAR(13) + 'Needed By: ' +ISNULL(FORMAT(@NeededByDate, 'D', 'en-US'),'');
+            FETCH NEXT FROM InsertedMaintenance_Cursor INTO @MachineName, @Creator, @FailureType, @MachineMaintenancePriority, @Code, @Name, @Description, @CauseNotes, @CreatedDateTime, @NeededByDate, @MachineMaintenanceScheduleTypeFK;
+            IF LEN(@FullSubject) > 0
+                BEGIN
+                    EXECUTE msdb.dbo.sp_send_dbmail 
+                            @profile_name = 'MIE Notifications', 
+                            @recipients = @recipients, 
+                            @Subject = @FullSubject, 
+                            @Body = @FullDescription;
+              END;
+              END;
+    CLOSE InsertedMaintenance_Cursor;
+    DEALLOCATE InsertedMaintenance_Cursor;
+END;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+--Created by Vimanga Umange

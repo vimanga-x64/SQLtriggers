@@ -1,0 +1,162 @@
+--VACATION REQUEST TRIGGER
+
+CREATE OR ALTER TRIGGER [dbo].[Trg_Alert_Vacation_Request] ON [dbo].[VacationRequest] FOR INSERT
+AS
+BEGIN
+	SET NOCOUNT ON;
+	DECLARE @Approved BIT;
+	DECLARE @recipients NVARCHAR(500) = 'Amir.Etezazi@etezazicorps.com;hr.eii@etezazicorps.com';
+	DECLARE @VacationRequestPK INT;
+	DECLARE @Name NVARCHAR(500);
+	DECLARE @EmployeeFK INT;
+	DECLARE @TimeClockEntryTypeFK NVARCHAR(500);
+	DECLARE @FromDate DATETIME;
+	DECLARE @ToDate DATETIME;
+	DECLARE @StartTime DATETIME;
+	DECLARE @Hours INT;
+	DECLARE @Reason NVARCHAR(500);
+	DECLARE @FullSubject NVARCHAR(500);
+	DECLARE @FullDescription NVARCHAR(1000);
+	DECLARE @Email NVARCHAR(500);
+	DECLARE @Emails NVARCHAR(500);
+
+	SET @FullSubject = '';
+	SET @FullDescription = '';
+	DECLARE InsertedVacation_Cursor CURSOR LOCAL
+	FOR
+	SELECT ISNULL((
+				SELECT FirstName + ' ' + LastName
+				FROM [User]
+				WHERE UserPK = EmployeeFK
+				), '')Name
+		,ISNULL((
+				SELECT Name
+				FROM TimeClockEntryType
+				WHERE TimeClockEntryTypePK = TimeClockEntryTypeFK
+				),'')TimeClockEntryTypeFK
+		,ISNULL((
+				SELECT Email
+				FROM [User]
+				WHERE UserPK = EmployeeFK
+				), '')Email
+		,FromDate
+		,ToDate
+		,StartTime
+		,Hours
+		,Reason
+	FROM inserted;
+
+	OPEN InsertedVacation_Cursor;
+
+	FETCH NEXT
+	FROM InsertedVacation_Cursor
+	INTO @Name
+		,@TimeClockEntryTypeFK
+		,@Email
+		,@FromDate
+		,@ToDate
+		,@StartTime
+		,@Hours
+		,@Reason;
+
+	WHILE (@@FETCH_STATUS = 0)
+	BEGIN
+		SET @FullSubject = 'Vacation request from ' + @Name;
+		SET @FullDescription = 'Requested by: '+ISNULL(@Name, '')+CHAR(10)+CHAR(13)+'Type: ' + ISNULL(@TimeClockEntryTypeFK,'') +CHAR(10)+CHAR(13) + 'Date Range: ' + ISNULL(FORMAT(@FromDate, 'D', 'en-US'), '') + ' to ' + ISNULL(FORMAT(@ToDate, 'D', 'en-US'), 'No End Date') +CHAR(10)+CHAR(13) + ' Time: ' + ISNULL(FORMAT(cast(@StartTime as time), N'hh\:mm'), '') +CHAR(10)+CHAR(13) + ' Reason: ' + ISNULL(@Reason, '') + CHAR(10)+CHAR(13) + ' Hours: ' + ISNULL(CONVERT(NVARCHAR(MAX), @Hours), '');
+
+		FETCH NEXT
+		FROM InsertedVacation_Cursor
+		INTO @Name
+			,@TimeClockEntryTypeFK
+			,@Email
+			,@FromDate
+			,@ToDate
+			,@StartTime
+			,@Hours
+			,@Reason;
+
+		IF LEN(@FullSubject) > 0
+		BEGIN
+			EXECUTE msdb.dbo.sp_send_dbmail @profile_name = 'Vacation Request MIE Alert'
+				,@recipients = @recipients
+				,@Subject = @FullSubject
+				,@Body = @FullDescription;
+		END;
+	END;
+	IF @Name IS NOT NULL
+	BEGIN
+		SET @FullSubject = 'Your vacation request has been submitted';
+		SET @FullDescription = 'Vacation request from ' +ISNULL(FORMAT(@FromDate, 'D', 'en-US'), '') + ' to ' + ISNULL(FORMAT(@ToDate, 'D', 'en-US'), 'No End Date') + ' has been submitted to Top Management for consideration'+CHAR(10)+CHAR(13)+CHAR(10)+CHAR(13)+CHAR(10)+CHAR(13)+'**All Time Off requests must be approved prior to taking the day off'+CHAR(10)+CHAR(13)+'**If employee does not report to work without an approved time off request it could lead to disciplinary action upto and including termination'+CHAR(10)+CHAR(13)+'**Please refer to Sharepoint [http://sharepoint/Shared%20Documents/Checking%20Time%20Off%20Requests%20on%20MIE%20TRAK.pdf] on how to check on status of Time Off Requests';
+
+		
+		FETCH NEXT
+		FROM InsertedVacation_Cursor
+		INTO @Name
+			,@TimeClockEntryTypeFK
+			,@Email
+			,@FromDate
+			,@ToDate
+			,@StartTime
+			,@Hours
+			,@Reason;
+
+		IF LEN(@FullSubject) > 0
+		BEGIN
+			EXECUTE msdb.dbo.sp_send_dbmail @profile_name = 'Vacation Request MIE Alert'
+				,@recipients = @Email
+				,@Subject = @FullSubject
+				,@Body = @FullDescription;
+		END;
+	END;
+	ELSE
+	BEGIN
+ 	FETCH NEXT
+		FROM InsertedVacation_Cursor
+		INTO @Name
+			,@TimeClockEntryTypeFK
+			,@Email
+			,@FromDate
+			,@ToDate
+			,@StartTime
+			,@Hours
+			,@Reason;
+
+	END;
+
+	CLOSE InsertedVacation_Cursor;
+
+	DEALLOCATE InsertedVacation_Cursor;
+END;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+--Created by Vimanga Umange

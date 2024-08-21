@@ -1,0 +1,180 @@
+CREATE OR ALTER   TRIGGER [dbo].[Trg_Alert_Task_Activity] ON [dbo].[TaskActivity] FOR INSERT AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @TaskActivityPK INT;
+    DECLARE @TaskActivityStatusFK INT;
+    DECLARE @TaskActivityTypeFK INT;
+    DECLARE @Creator NVARCHAR(500);
+    DECLARE @AssignedToFK INT;
+    DECLARE @AssignedTo NVARCHAR(500);
+    DECLARE @Status NVARCHAR(500);
+    DECLARE @MachineMaintenanceScheduleWorkOrderFK INT;
+    DECLARE @PartyFK INT;
+    DECLARE @PurchaseOrder NVARCHAR(500);
+    DECLARE @PurchaseOrderRequestFK INT;
+    DECLARE @PurchaseOrderReceivingFK INT;
+    DECLARE @QuoteFK NVARCHAR(200); 
+    DECLARE @RequestForQuoteFK NVARCHAR(200);
+    DECLARE @RouterFK INT;
+    DECLARE @SalesOrderFK NVARCHAR(200);
+    DECLARE @WorkOrderFK NVARCHAR(200);
+    DECLARE @QualityControlFK INT;
+    DECLARE @Priority INT;
+    DECLARE @ApprovalRequired BIT;
+    DECLARE @CreatedDate DATE;
+    DECLARE @AssignedDate DATE;
+    DECLARE @CompletedDate DATE;
+    DECLARE @DeadlineDate DATE;
+    DECLARE @StartTime DATETIME;
+    DECLARE @EndTime DATETIME;
+    DECLARE @ApprovalDate DATE;
+    DECLARE @InvoiceFK NVARCHAR(100);
+    DECLARE @ItemFK NVARCHAR(200);
+    DECLARE @RequestDeniedDate DATE;
+    DECLARE @TaskWorkFlowTemplateNumber NVARCHAR(50);
+    DECLARE @Name NVARCHAR(100);
+    DECLARE @PartNumber NVARCHAR(150);
+    DECLARE @Description NVARCHAR(500);
+    DECLARE @Comments NVARCHAR(500);
+    DECLARE @QualityControlContainmentActionNumber INT;
+    DECLARE @EngineeringChangeRequestFK INT;
+    DECLARE @Repeat BIT;
+    DECLARE @CompletedByFK INT;
+    DECLARE @FullSubject NVARCHAR(500);
+    DECLARE @FullDescription NVARCHAR(1000);
+    DECLARE @Emails NVARCHAR(500);
+    SET @FullSubject = '';
+    SET @FullDescription = '';
+    DECLARE InsertedTaskActivity_Cursor CURSOR LOCAL
+    FOR SELECT [TaskActivityPK], --
+               [TaskActivityStatusFK],
+               [TaskActivityTypeFK],
+               ISNULL(
+(
+    SELECT FirstName+' '+LastName
+    FROM [User]
+    WHERE UserPK = [CreatorFK]
+), '') Creator,
+               [AssignedToFK],
+               ISNULL(
+(
+     SELECT FirstName+' '+LastName
+     FROM [User]
+     WHERE UserPK = [AssignedToFK]
+),'')AssignedTo,
+               ISNULL(
+(
+     SELECT Description
+     FROM TaskActivityStatus
+     WHERE TaskActivityStatusPK = [TaskActivityStatusFK]
+),'')Status,
+               [MachineMaintenanceScheduleWorkOrderFK],
+               [PartyFK],
+	   ISNULL(
+(
+      SELECT iif(PurchaseOrderNumber = 0 OR PurchaseOrderNumber IS NULL, ' ', CAST(PurchaseOrderNumber AS VARCHAR(10)))
+      FROM PurchaseOrder
+      WHERE PurchaseOrderPK = PurchaseOrderFK
+),'')PurchaseOrder,	
+               [PurchaseOrderRequestFK],
+               [PurchaseOrderReceivingFK],
+               [QuoteFK],
+               [RequestForQuoteFK],
+               [RouterFK],
+               [SalesOrderFK],
+               [WorkOrderFK],
+               [QualityControlFK],
+               [Priority],
+               [ApprovalRequired],
+               CreatedDate,
+               AssignedDate,
+               CompletedDate,
+               DeadlineDate,
+               [StartTime],
+               [EndTime],
+               [ApprovalDate],
+               InvoiceFK,
+               ItemFK,
+               [RequestDeniedDate],
+               [TaskWorkFlowTemplateNumber],
+               [Name],
+               [PartNumber],
+               [Description],
+               [Comments],
+               [QualityControlContainmentActionNumber],
+               [EngineeringChangeRequestFK],
+               [Repeat],
+               [CompletedByFK]
+        FROM inserted;
+    OPEN InsertedTaskActivity_Cursor;
+    FETCH NEXT FROM InsertedTaskActivity_Cursor INTO @TaskActivityPK, @TaskActivityStatusFK, @TaskActivityTypeFK, @Creator, @AssignedToFK, @AssignedTo, @Status, @MachineMaintenanceScheduleWorkOrderFK, @PartyFK, @PurchaseOrder, @PurchaseOrderRequestFK, @PurchaseOrderReceivingFK, @QuoteFK, @RequestForQuoteFK, @RouterFK, @SalesOrderFK, @WorkOrderFK, @QualityControlFK, @Priority, @ApprovalRequired, @CreatedDate, @AssignedDate, @CompletedDate, @DeadlineDate, @StartTime, @EndTime, @ApprovalDate, @InvoiceFK, @ItemFK, @RequestDeniedDate, @TaskWorkFlowTemplateNumber, @Name, @PartNumber, @Description, @Comments, @QualityControlContainmentActionNumber, @EngineeringChangeRequestFK, @Repeat, @CompletedByFK;
+    WHILE(@@FETCH_STATUS = 0)
+        BEGIN
+            SET @Emails =
+(
+    SELECT Email
+    FROM [User]
+    WHERE UserPK = @AssignedToFK
+);
+            SET @FullSubject = 'Task : '+ISNULL(@Name,'No Title')+' With Task No: '+CONVERT(NVARCHAR(MAX), @TaskActivityPK)+' Has been assigned to '+ISNULL(@AssignedTo,'');
+            SET @FullDescription = 'Task Status: '+ISNULL(@Status,'')+CHAR(10)+CHAR(13)+'Created on: '+ISNULL(FORMAT(@AssignedDate, 'D', 'en-US'),'')+CHAR(10)+CHAR(13)+'Created by: '+ISNULL(@Creator,'')+CHAR(10)+CHAR(13)+'Assigned To: '+ISNULL(@AssignedTo+CHAR(10)+CHAR(13),'')+'Task Title: '+ISNULL(@Name,'No Title')+CHAR(10)+CHAR(13)+'Task Description: '+ISNULL(@Description+CHAR(10)+CHAR(13),'No Description')+CHAR(10)+CHAR(13)+'Comments: '+ISNULL(@Comments,'No Notes')+CHAR(10)+CHAR(13)+'Needed By: '+ISNULL(FORMAT(@DeadlineDate, 'D', 'en-US'),'No Deadline')+CHAR(10)+CHAR(13) + 'Priority[0=Low, 1=Medium, 2=High]: '+ISNULL(Format(@Priority, 'D', 'en-US'),'')+CHAR(10)+CHAR(13)+CHAR(10)+CHAR(13)+ 'Purchase Order Attached To This Task: '+ISNULL(@PurchaseOrder,'None')+CHAR(10)+CHAR(13)+ 'Invoice Number: '+ISNULL(CONVERT(NVARCHAR(MAX) ,@InvoiceFK), '')+CHAR(10)+CHAR(13)+ 'Item Number: '+ISNULL(CONVERT(NVARCHAR(MAX), @ItemFK), '')+CHAR(10)+CHAR(13)+ 'PurchaseOrder Receiving: '+ISNULL(CONVERT(NVARCHAR(MAX), @PurchaseOrderReceivingFK), '')+CHAR(10)+CHAR(13)+ 'Quote: '+ISNULL(CONVERT(NVARCHAR(MAX), @QuoteFK), '')+CHAR(10)+CHAR(13)+ 'RFQ No: '+ISNULL(CONVERT(NVARCHAR(MAX), @RequestForQuoteFK), '')+CHAR(10)+CHAR(13)+ 'SO No: '+ISNULL(CONVERT(NVARCHAR(MAX), @SalesOrderFK), '')+CHAR(10)+CHAR(13)+ 'WO No: '+ISNULL(CONVERT(NVARCHAR(MAX), @WorkOrderFK), '');
+            FETCH NEXT FROM InsertedTaskActivity_Cursor INTO @TaskActivityPK, @TaskActivityStatusFK, @TaskActivityTypeFK, @Creator, @AssignedToFK, @AssignedTo, @Status, @MachineMaintenanceScheduleWorkOrderFK, @PartyFK, @PurchaseOrder, @PurchaseOrderRequestFK, @PurchaseOrderReceivingFK, @QuoteFK, @RequestForQuoteFK, @RouterFK, @SalesOrderFK, @WorkOrderFK, @QualityControlFK, @Priority, @ApprovalRequired, @CreatedDate, @AssignedDate, @CompletedDate, @DeadlineDate, @StartTime, @EndTime, @ApprovalDate, @InvoiceFK, @ItemFK, @RequestDeniedDate, @TaskWorkFlowTemplateNumber, @Name, @PartNumber, @Description, @Comments, @QualityControlContainmentActionNumber, @EngineeringChangeRequestFK, @Repeat, @CompletedByFK;
+            IF LEN(@FullSubject) > 0
+                BEGIN
+                    EXECUTE msdb.dbo.sp_send_dbmail
+                            @profile_name = 'Task MIE Alert',
+                            @recipients = @Emails,
+                            @Subject = @FullSubject,
+	             --@importance = 'High',
+                            @Body = @FullDescription;
+                END;
+        END;
+    CLOSE InsertedTaskActivity_Cursor;
+    DEALLOCATE InsertedTaskActivity_Cursor;
+END;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+--Created by Vimanga Umange

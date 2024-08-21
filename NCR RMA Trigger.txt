@@ -1,0 +1,1171 @@
+-- NCR/RMA TRIGGER
+
+CREATE OR ALTER TRIGGER [dbo].[Trg_Aler_NCR_Creation] ON [dbo].[QualityControl]
+FOR INSERT
+AS
+BEGIN
+	SET NOCOUNT ON;
+	DECLARE @Disposition NVARCHAR(500);
+	DECLARE @RejectedBecause NVARCHAR(500);
+	DECLARE @OperationType NVARCHAR(500);
+	DECLARE @ResDep NVARCHAR(500);
+	DECLARE @Customer NVARCHAR(500);
+	DECLARE @Supplier NVARCHAR(500);
+	DECLARE @Dispo NVARCHAR(1000);
+	DECLARE @recipients NVARCHAR(500) = 'Quality@etezazicorps.com;Engineering@etezazicorps.com;CRM@etezazicorps.com';
+	DECLARE @NameBy NVARCHAR(500);
+	DECLARE @QualityControlPK INT;
+	DECLARE @ApprovedByFK INT;
+	DECLARE @AssignedEmployeeFK INT;
+	DECLARE @CreatedByFK INT;
+	DECLARE @CorrectiveActionApprovedByFK INT;
+	DECLARE @CorrectiveActionTypeOneFK INT;
+	DECLARE @CorrectiveActionTypeTwoFK INT;
+	DECLARE @CorrectiveActionTypeThreeFK INT;
+	DECLARE @CustomerFK INT;
+	DECLARE @CustomerInspectedByFK INT;
+	DECLARE @CustomerResponsiblePartyFK INT;
+	DECLARE @CustomerWorkCenterFK INT;
+	DECLARE @DispositionTypeOneFK INT;
+	DECLARE @DispositionTypeTwoFK INT;
+	DECLARE @DispositionTypeThreeFK INT;
+	DECLARE @DivisionFK INT;
+	DECLARE @FailureTypeOneFK INT;
+	DECLARE @FailureTypeTwoFK INT;
+	DECLARE @FailureTypeThreeFK INT;
+	DECLARE @ItemFK INT;
+	DECLARE @InspectedByFK INT;
+	DECLARE @OriginalJobNumberPurchaseOrderReceiving INT;
+	DECLARE @PerformedByFK INT;
+	DECLARE @PurchaseOrderReceivingFK INT;
+	DECLARE @PurchaseOrderReceivingLineFK INT;
+	DECLARE @QualityControlStatusFK INT;
+	DECLARE @RejectionTypeFK INT;
+	DECLARE @CustomerRejectionTypeFK INT;
+	DECLARE @ResponsiblePartyFK INT;
+	DECLARE @ResponsibleUserFK INT;
+	DECLARE @ResponsibleUser1FK INT;
+	DECLARE @RouterFK INT;
+	DECLARE @SalesOrderLineFK INT;
+	DECLARE @VendorFK INT;
+	DECLARE @WorkCenterFK INT;
+	DECLARE @WorkOrderNestFK INT;
+	DECLARE @WorkOrderFK INT;
+	DECLARE @DepartmentFK INT;
+	DECLARE @CreditCompletedByFK INT;
+	DECLARE @DebitCompletedByFK INT;
+	DECLARE @ReceivedByFK INT;
+	DECLARE @QuantityScrapReasonFK INT;
+	DECLARE @ReworkCostScrapReasonFK INT;
+	DECLARE @InitiallyFoundAtFK INT;
+	DECLARE @ContainmentActionAssignedToFK INT;
+	DECLARE @TeamLeaderFK INT;
+	DECLARE @ManufacturingReviewFK INT;
+	DECLARE @RootCauseAssignedEmployeeFK INT;
+	DECLARE @WorkReleaseNumber INT;
+	DECLARE @CreditInvoiceNumber INT;
+	DECLARE @DebitInvoiceNumber INT;
+	DECLARE @InvoiceNumber INT;
+	DECLARE @JobNumber INT;
+	DECLARE @OriginalJobNumber INT;
+	DECLARE @OriginalSalesOrderNumber NVARCHAR(500);
+	DECLARE @OriginalWorkOrderNumber INT;
+	DECLARE @PurchaseOrderReceivingQualityControlNumber INT;
+	DECLARE @SalesOrderNumber INT;
+	DECLARE @SalesOrderQualityControlNumber INT;
+	DECLARE @WorkOrderQualityControlNumber INT;
+	DECLARE @ReworkWorkOrderNumber INT;
+	DECLARE @Accounting BIT;
+	DECLARE @Administration BIT;
+	DECLARE @CommercialCarrier BIT;
+	DECLARE @ContainmentActionCompleteFlag BIT;
+	DECLARE @ContainmentActionRequiredYes BIT;
+	DECLARE @ContainmentActionRequiredNo BIT;
+	DECLARE @CorrectiveActionsReevaluate BIT;
+	DECLARE @CorrectiveActionRequired BIT;
+	DECLARE @CorrectiveActionTaken BIT;
+	DECLARE @CreditRequired BIT;
+	DECLARE @CustomerDebited BIT;
+	DECLARE @CustomerFlag BIT;
+	DECLARE @DMRCompleted BIT;
+	DECLARE @Effective BIT;
+	DECLARE @EscapeNo BIT;
+	DECLARE @EscapeYes BIT;
+	DECLARE @IsRFA BIT;
+	DECLARE @IssueClosed BIT;
+	DECLARE @MaterialReceivedInMRBArea BIT;
+	DECLARE @MRBMeetingHeld BIT;
+	DECLARE @NoDebitCreditRequired BIT;
+	DECLARE @NoFlag BIT;
+	DECLARE @OnHandInventoryChecked BIT;
+	DECLARE @OtherFiscalResponsibility BIT;
+	DECLARE @Production BIT;
+	DECLARE @Purchasing BIT;
+	DECLARE @Rejected BIT;
+	DECLARE @ReevaluateRootCause BIT;
+	DECLARE @RequiresApproval BIT;
+	DECLARE @RMAOnly BIT;
+	DECLARE @RootCauseAnalysisComplete BIT;
+	DECLARE @RootCauseRequiredYes BIT;
+	DECLARE @RootCauseRequiredNo BIT;
+	DECLARE @Sales BIT;
+	DECLARE @SuccessfulFlag BIT;
+	DECLARE @Shipping BIT;
+	DECLARE @SupplierFlag BIT;
+	DECLARE @UnSuccessfulFlag BIT;
+	DECLARE @WIPCheckedForDefect BIT;
+	DECLARE @YesFlag BIT;
+	DECLARE @CreditPrice DECIMAL;
+	DECLARE @DebitPrice DECIMAL;
+	DECLARE @Other DECIMAL;
+	DECLARE @OriginalQuantity INT;
+	DECLARE @Price DECIMAL;
+	DECLARE @QualityToCredit DECIMAL;
+	DECLARE @QualityToDebit DECIMAL;
+	DECLARE @QuantityAuthorized DECIMAL;
+	DECLARE @QuantityReceived INT;
+	DECLARE @QuantityReturned DECIMAL;
+	DECLARE @QuantityRework DECIMAL;
+	DECLARE @QuantityScrap DECIMAL;
+	DECLARE @ReturnToSupplier DECIMAL;
+	DECLARE @ReworkCostLabor DECIMAL;
+	DECLARE @ReworkCostMaterial DECIMAL;
+	DECLARE @ReworkCostMiscellaneous DECIMAL;
+	DECLARE @ReworkCostScrap DECIMAL;
+	DECLARE @TotalCreditAmount DECIMAL;
+	DECLARE @TotalDebitAmount DECIMAL;
+	DECLARE @TotalReworkCosts DECIMAL;
+	DECLARE @UseAsIs DECIMAL;
+	DECLARE @ApprovalDate DATETIME;
+	DECLARE @ApprovedDate DATETIME;
+	DECLARE @CompletedDate DATETIME;
+	DECLARE @CorrectiveActionApprovedDate DATETIME;
+	DECLARE @CorrectiveActionCompletedByDate DATETIME;
+	DECLARE @CorrectiveActionManufacturingReviewDate DATETIME;
+	DECLARE @CreateDate DATETIME;
+	DECLARE @CreditDate DATETIME;
+	DECLARE @CreditCompleted DATETIME;
+	DECLARE @CustomerInspectionDate DATETIME;
+	DECLARE @DeadLineDate DATETIME;
+	DECLARE @DebitCompletedDate DATETIME;
+	DECLARE @DebitDateDue DATETIME;
+	DECLARE @DeniedDate DATETIME;
+	DECLARE @DueDate DATETIME;
+	DECLARE @EndDate DATETIME;
+	DECLARE @FollowUpDate DATETIME;
+	DECLARE @InspectionDate DATETIME;
+	DECLARE @IssueClosedDate DATETIME;
+	DECLARE @MaterialReceivedVerifiedDate DATETIME;
+	DECLARE @MRBMeetingDate DATETIME;
+	DECLARE @OnHandInventoryVerifiedDate DATETIME;
+	DECLARE @PreventativeActionAssignedToDate DATETIME;
+	DECLARE @PriorityDate DATETIME;
+	DECLARE @ReceivedDate DATETIME;
+	DECLARE @RFAAssignedDate DATETIME;
+	DECLARE @RootCauseAnalysisCompetedDate DATETIME;
+	DECLARE @RootCauseDate DATETIME;
+	DECLARE @StartDate DATETIME;
+	DECLARE @WIPCheckedVerifiedDate DATETIME;
+	DECLARE @CAControlNumber INT;
+	DECLARE @ReferencePurchaseOrderNumber NVARCHAR(500);
+	DECLARE @ReferenceOrderNumber NVARCHAR(500);
+	DECLARE @CustomerNCRNumber NVARCHAR(500);
+	DECLARE @SubmissionNumber INT;
+	DECLARE @Name NVARCHAR(500);
+	DECLARE @RMANumber INT;
+	DECLARE @PartNumber NVARCHAR(500);
+	DECLARE @ItemDescription NVARCHAR(500);
+	DECLARE @Revision NVARCHAR(150);
+	DECLARE @RouterRevision NVARCHAR(150);
+	DECLARE @RouterPartNumber NVARCHAR(500);
+	DECLARE @RouterDescription NVARCHAR(500);
+	DECLARE @AdditionalComments NVARCHAR(500);
+	DECLARE @CAPAComments NVARCHAR(500);
+	DECLARE @Cause NVARCHAR(500);
+	DECLARE @Comment NVARCHAR(500);
+	DECLARE @ContainmentActionComplete NVARCHAR(500);
+	DECLARE @CorrectiveAction NVARCHAR(500);
+	DECLARE @CreditComment NVARCHAR(500);
+	DECLARE @CustomerCause NVARCHAR(500);
+	DECLARE @CustomerDiscrepancy NVARCHAR(500);
+	DECLARE @DebitComment NVARCHAR(500);
+	DECLARE @Description NVARCHAR(500);
+	DECLARE @DescripeFollowUp NVARCHAR(500);
+	DECLARE @Discrepancy NVARCHAR(500);
+	DECLARE @Explanation NVARCHAR(500);
+	DECLARE @InspectorComment NVARCHAR(500);	
+	DECLARE @KnowCause NVARCHAR(500);
+	DECLARE @OtherFiscalResponsibilityComment NVARCHAR(500);
+	DECLARE @PreventiveAction NVARCHAR(500);
+	DECLARE @RootCauseCommentOne NVARCHAR(500);
+	DECLARE @RootCauseCommentTwo NVARCHAR(500);
+	DECLARE @RootCauseCommentThree NVARCHAR(500);
+	DECLARE @RootCauseCommentFour NVARCHAR(500);
+	DECLARE @RootCauseCommentFive NVARCHAR(500);
+	DECLARE @RootCauseCommentSix NVARCHAR(500);
+	DECLARE @RootCauseAnalysisCommentOne NVARCHAR(500);
+	DECLARE @RootCauseAnalysisCommentTwo NVARCHAR(500);
+	DECLARE @RootCauseAnalysisCommentThree NVARCHAR(500);
+	DECLARE @RootCauseAnalysisCommentFour NVARCHAR(500);
+	DECLARE @RootCauseAnalysisCommentFive NVARCHAR(500);
+	DECLARE @RootCauseAnalysisCommentSix NVARCHAR(500);
+	DECLARE @SalesComment NVARCHAR(500);
+	DECLARE @TeamMembers NVARCHAR(500);
+	DECLARE @CustomerComplaint BIT;
+	DECLARE @ItemSerialNumberFK INT;
+	DECLARE @OperationFK INT;
+	DECLARE @OperationInitiallyFoundFK INT;
+	DECLARE @CloseDate DATETIME;
+	DECLARE @OpportunityForImprovement NVARCHAR(500);	
+	DECLARE @Emails NVARCHAR(500);
+	DECLARE @FullSubject NVARCHAR(500);
+	DECLARE @FullDescription NVARCHAR(1000);
+
+	SET @FullSubject = '';
+	SET @FullDescription = '';
+
+	DECLARE InsertedNCR_Cursor CURSOR LOCAL
+	FOR SELECT
+	[QualityControlPK],
+	[ApprovedByFK],
+	[AssignedEmployeeFK],
+	[CreatedByFK],
+	[CorrectiveActionApprovedByFK],
+	[CorrectiveActionTypeOneFK],
+	[CorrectiveActionTypeTwoFK],
+	[CorrectiveActionTypeThreeFK],
+	[CustomerFK],
+	[CustomerInspectedByFK],
+	[CustomerResponsiblePartyFK],
+	[CustomerWorkCenterFK],
+	ISNULL((
+			SELECT Description
+			FROM DispositionType
+			WHERE DispositionTypePK = [DispositionTypeOneFK]
+			), '')Dispositon,
+	[DispositionTypeTwoFK],
+	[DispositionTypeThreeFK],
+	[DivisionFK],
+	[FailureTypeOneFK],
+	[FailureTypeTwoFK],
+	[FailureTypeThreeFK],
+	[ItemFK],
+	[InspectedByFK],
+	OriginalJobNumberPurchaseOrderReceiving,
+	[PerformedByFK],
+	[PurchaseOrderReceivingFK],
+	[PurchaseOrderReceivingLineFK],
+	[QualityControlStatusFK],
+	[RejectionTypeFK],
+	[CustomerRejectionTypeFK],
+	[ResponsiblePartyFK],
+	[ResponsibleUserFK],
+	[ResponsibleUser1FK],
+	[RouterFK],
+	[SalesOrderLineFK],
+	[VendorFK],
+	[WorkCenterFK],
+	[WorkOrderNestFK],
+	[WorkOrderFK],
+	[DepartmentFK],
+	[CreditCompletedByFK],
+	[DebitCompletedByFK],
+	[ReceivedByFK],
+	[QuantityScrapReasonFK],
+	[ReworkCostScrapReasonFK],
+	[InitiallyFoundAtFK],
+	[ContainmentActionAssignedToFK],
+	[TeamLeaderFK],
+	[ManufacturingReviewFK],
+	[RootCauseAssignedEmployeeFK],
+	WorkReleaseNumber,
+	CreditInvoiceNumber,
+	DebitInvoiceNumber,
+	InvoiceNumber,
+	JobNumber,
+	OriginalJobNumber,
+	OriginalSalesOrderNumber,
+	OriginalWorkOrderNumber,
+	PurchaseOrderReceivingQualityControlNumber,
+	SalesOrderNumber,
+	SalesOrderQualityControlNumber,
+	WorkOrderQualityControlNumber,
+	ReworkWorkOrderNumber,
+	Accounting,
+	Administration,
+	CommercialCarrier,
+	ContainmentActionCompleteFlag,
+ 	ContainmentActionRequiredYes,
+	ContainmentActionRequiredNo,
+	CorrectiveActionsReevaluate,
+	CorrectiveActionRequired,
+	CorrectiveActionTaken,
+	CreditRequired,
+	CustomerDebited,
+	CustomerFlag,
+	DMRCompleted,
+	Effective,
+	EscapeNo,
+	EscapeYes,
+	IsRFA,
+	IssueClosed,
+	MaterialReceivedInMRBArea,
+	MRBMeetingHeld,
+	NoDebitCreditRequired,
+	NoFlag,
+	OnHandInventoryChecked,
+	OtherFiscalResponsibility,
+	Production,
+	Purchasing,
+	Rejected,
+	ReevaluateRootCause,
+	RequiresApproval,
+	RMAOnly,
+	RootCauseAnalysisComplete,
+	RootCauseRequiredYes,
+	RootCauseRequiredNo,
+	Sales,
+	SuccessfulFlag,
+	Shipping,
+	SupplierFlag,
+	UnSuccessfulFlag,
+	WIPCheckedForDefect,
+	YesFlag,
+	CreditPrice,
+	DebitPrice,
+	Other,
+	OriginalQuantity,
+	Price,
+	QualityToCredit,
+	QualityToDebit,
+	QuantityAuthorized,
+	QuantityReceived,
+	QuantityReturned,
+	QuantityRework,
+	QuantityScrap,
+	ReturnToSupplier,
+	ReworkCostLabor,
+	ReworkCostMaterial,
+	ReworkCostMiscellaneous,
+	ReworkCostScrap,
+	TotalCreditAmount,
+	TotalDebitAmount,
+	TotalReworkCosts,
+	UseAsIs,
+	ApprovalDate,
+	ApprovedDate,
+	CompletedDate,
+	CorrectiveActionApprovedDate,
+	CorrectiveActionCompletedByDate,
+	CorrectiveActionManufacturingReviewDate,
+	CreateDate,
+	CreditDate,
+	CreditCompleted,
+	CustomerInspectionDate,
+	DeadLineDate,
+	DebitCompletedDate,
+	DebitDateDue,
+	DeniedDate,
+	DueDate,
+	EndDate,
+	FollowUpDate,
+	InspectionDate,
+	IssueClosedDate,
+	MaterialReceivedVerifiedDate,
+	MRBMeetingDate,
+	OnHandInventoryVerifiedDate,
+	PreventativeActionAssignedToDate,
+	PriorityDate,	
+	ISNULL((
+				SELECT p.Name
+				FROM Party p 
+				WHERE p.PartyPK = [CustomerFK]
+				), '')Customer,
+	ISNULL((
+				SELECT p.Name
+				FROM Party p
+				WHERE p.PartyPK = [VendorFK]
+				), '')Supplier,
+	
+	ReceivedDate,
+	RFAAssignedDate,
+	RootCauseAnalysisCompetedDate,
+	RootCauseDate,
+	StartDate,
+	WIPCheckedVerifiedDate,
+	CAControlNumber,
+	ReferencePurchaseOrderNumber,
+	ReferenceOrderNumber,
+	SubmissionNumber,
+	Name,
+	RMANumber,
+	PartNumber,
+	ItemDescription,
+	Revision,
+	RouterRevision,
+	RouterPartNumber,
+	RouterDescription,
+	AdditionalComments,
+	CAPAComments,
+	Cause,
+	Comment,
+	ContainmentActionComplete,
+	CorrectiveAction,
+	CreditComment,
+	CustomerCause,
+	CustomerDiscrepancy,
+	DebitComment,
+	Description,
+	DescripeFollowUp,
+	Discrepancy,
+	ISNULL((
+			SELECT o.Name
+			FROM Operation o
+			WHERE o.OperationPK = [OperationFK]
+			), '')OperationType,
+	Explanation,
+	InspectorComment,
+	KnowCause,
+	OtherFiscalResponsibilityComment,
+	PreventiveAction,
+	ISNULL((
+				SELECT dep.Name
+				FROM Department dep
+				WHERE DepartmentPK = [DepartmentFK]
+				), '')ResDep,	
+	RootCauseCommentOne,
+	RootCauseCommentTwo,
+	RootCauseCommentThree,
+	RootCauseCommentFour,
+	RootCauseCommentFive,
+	RootCauseCommentSix,
+	TeamMembers,
+	RootCauseAnalysisCommentOne,
+	RootCauseAnalysisCommentTwo,	
+	RootCauseAnalysisCommentThree,
+	RootCauseAnalysisCommentFour,
+	RootCauseAnalysisCommentFive,
+	RootCauseAnalysisCommentSix,
+	SalesComment,
+	CustomerComplaint,
+	ItemSerialNumberFK,
+	OperationFK,
+	OperationInitiallyFoundFK,
+	ISNULL((
+				SELECT Description
+				FROM RejectionType
+				WHERE RejectionTypePK = [CustomerRejectionTypeFK]
+				), '')RejectedBecause,
+	CloseDate,
+	OpportunityForImprovement,
+	ISNULL((
+				SELECT FirstName+' '+LastName
+				FROM [User]
+				WHERE UserPK = [CreatedByFK]
+				), '')NameBy,
+	CustomerNCRNumber
+	FROM inserted;
+
+	OPEN InsertedNCR_Cursor;
+
+	FETCH NEXT
+	FROM InsertedNCR_Cursor
+	INTO
+	@QualityControlPK,
+	@ApprovedByFK,
+	@AssignedEmployeeFK,
+	@CreatedByFK,
+	@CorrectiveActionApprovedByFK,
+	@CorrectiveActionTypeOneFK,
+	@CorrectiveActionTypeTwoFK,
+	@CorrectiveActionTypeThreeFK,
+	@CustomerFK,
+	@CustomerInspectedByFK,
+	@CustomerResponsiblePartyFK,
+	@CustomerWorkCenterFK,
+	@Disposition,
+	@DispositionTypeTwoFK,
+	@DispositionTypeThreeFK,
+	@DivisionFK,
+	@FailureTypeOneFK,
+	@FailureTypeTwoFK,
+	@FailureTypeThreeFK,
+	@ItemFK,
+	@InspectedByFK,
+	@OriginalJobNumberPurchaseOrderReceiving,
+	@PerformedByFK,
+	@PurchaseOrderReceivingFK,
+	@PurchaseOrderReceivingLineFK,
+	@QualityControlStatusFK,
+	@RejectionTypeFK,
+	@CustomerRejectionTypeFK,
+	@ResponsiblePartyFK,
+	@ResponsibleUserFK,
+	@ResponsibleUser1FK,
+	@RouterFK,
+	@SalesOrderLineFK,
+	@VendorFK,
+	@WorkCenterFK,
+	@WorkOrderNestFK,
+	@WorkOrderFK,
+	@DepartmentFK,
+	@CreditCompletedByFK,
+	@DebitCompletedByFK,
+	@ReceivedByFK,
+	@QuantityScrapReasonFK,
+	@ReworkCostScrapReasonFK,
+	@InitiallyFoundAtFK,
+	@ContainmentActionAssignedToFK,
+	@TeamLeaderFK,
+	@ManufacturingReviewFK,
+	@RootCauseAssignedEmployeeFK,
+	@WorkReleaseNumber,
+	@CreditInvoiceNumber,
+	@DebitInvoiceNumber,
+	@InvoiceNumber,
+	@JobNumber,
+	@OriginalJobNumber,
+	@OriginalSalesOrderNumber,
+	@OriginalWorkOrderNumber,
+	@PurchaseOrderReceivingQualityControlNumber,
+	@SalesOrderNumber,
+	@SalesOrderQualityControlNumber,
+	@WorkOrderQualityControlNumber,
+	@ReworkWorkOrderNumber,
+	@Accounting,
+	@Administration,
+	@CommercialCarrier,
+	@ContainmentActionCompleteFlag,
+ 	@ContainmentActionRequiredYes,
+	@ContainmentActionRequiredNo,
+	@CorrectiveActionsReevaluate,
+	@CorrectiveActionRequired,
+	@CorrectiveActionTaken,
+	@CreditRequired,
+	@CustomerDebited,
+	@CustomerFlag,
+	@DMRCompleted,
+	@Effective,
+	@EscapeNo,
+	@EscapeYes,
+	@IsRFA,
+	@IssueClosed,
+	@MaterialReceivedInMRBArea,
+	@MRBMeetingHeld,
+	@NoDebitCreditRequired,
+	@NoFlag,
+	@OnHandInventoryChecked,
+	@OtherFiscalResponsibility,
+	@Production,
+	@Purchasing,
+	@Rejected,
+	@ReevaluateRootCause,
+	@RequiresApproval,
+	@RMAOnly,
+	@RootCauseAnalysisComplete,
+	@RootCauseRequiredYes,
+	@RootCauseRequiredNo,
+	@Sales,
+	@SuccessfulFlag,
+	@Shipping,
+	@SupplierFlag,
+	@UnSuccessfulFlag,
+	@WIPCheckedForDefect,
+	@YesFlag,
+	@CreditPrice,
+	@DebitPrice,
+	@Other,
+	@OriginalQuantity,
+	@Price,
+	@QualityToCredit,
+	@QualityToDebit,
+	@QuantityAuthorized,
+	@QuantityReceived,
+	@QuantityReturned,
+	@QuantityRework,
+	@QuantityScrap,
+	@ReturnToSupplier,
+	@ReworkCostLabor,
+	@ReworkCostMaterial,
+	@ReworkCostMiscellaneous,
+	@ReworkCostScrap,
+	@TotalCreditAmount,
+	@TotalDebitAmount,
+	@TotalReworkCosts,
+	@UseAsIs,
+	@ApprovalDate,
+	@ApprovedDate,
+	@CompletedDate,
+	@CorrectiveActionApprovedDate,
+	@CorrectiveActionCompletedByDate,
+	@CorrectiveActionManufacturingReviewDate,
+	@CreateDate,
+	@CreditDate,
+	@CreditCompleted,
+	@CustomerInspectionDate,
+	@DeadLineDate,
+	@DebitCompletedDate,
+	@DebitDateDue,
+	@DeniedDate,
+	@DueDate,
+	@EndDate,
+	@FollowUpDate,
+	@InspectionDate,
+	@IssueClosedDate,
+	@MaterialReceivedVerifiedDate,
+	@MRBMeetingDate,
+	@OnHandInventoryVerifiedDate,
+	@PreventativeActionAssignedToDate,
+	@PriorityDate,
+	@Customer,
+	@Supplier,
+	@ReceivedDate,
+	@RFAAssignedDate,
+	@RootCauseAnalysisCompetedDate,
+	@RootCauseDate,
+	@StartDate,
+	@WIPCheckedVerifiedDate,
+	@CAControlNumber,
+	@ReferencePurchaseOrderNumber,
+	@ReferenceOrderNumber,
+	@SubmissionNumber,
+	@Name,
+	@RMANumber,
+	@PartNumber,
+	@ItemDescription,
+	@Revision,
+	@RouterRevision,
+	@RouterPartNumber,
+	@RouterDescription,
+	@AdditionalComments,
+	@CAPAComments,
+	@Cause,
+	@Comment,
+	@ContainmentActionComplete,
+	@CorrectiveAction,
+	@CreditComment,
+	@CustomerCause,
+	@CustomerDiscrepancy,
+	@DebitComment,
+	@Description,
+	@DescripeFollowUp,
+	@Discrepancy,
+	@OperationType,
+	@Explanation,
+	@InspectorComment,
+	@KnowCause,
+	@OtherFiscalResponsibilityComment,
+	@PreventiveAction,
+	@ResDep,
+	@RootCauseCommentOne,
+	@RootCauseCommentTwo,
+	@RootCauseCommentThree,
+	@RootCauseCommentFour,
+	@RootCauseCommentFive,
+	@RootCauseCommentSix,
+	@RootCauseAnalysisCommentOne,
+	@RootCauseAnalysisCommentTwo,	
+	@RootCauseAnalysisCommentThree,
+	@RootCauseAnalysisCommentFour,
+	@RootCauseAnalysisCommentFive,
+	@RootCauseAnalysisCommentSix,
+	@SalesComment,
+	@TeamMembers,
+	@CustomerComplaint,
+	@ItemSerialNumberFK,
+	@OperationFK,
+	@OperationInitiallyFoundFK,
+	@RejectedBecause,
+	@CloseDate,
+	@OpportunityForImprovement,		
+	@NameBy,
+	@CustomerNCRNumber;
+
+	WHILE (@@FETCH_STATUS = 0)
+	IF @SalesOrderNumber IS NOT NULL
+	BEGIN	
+		SET @FullSubject = 'RMA '+ISNULL(CONVERT(NVARCHAR(MAX), @QualityControlPK), '')+' by '+ISNULL(@NameBy, 'No Name');
+		SET @FullDescription = 'RMA Number: '+ISNULL(CONVERT(NVARCHAR(MAX), @QualityControlPK), '')+CHAR(10)+CHAR(13)+'Customer: '+ISNULL(@Customer, 'None')+CHAR(10)+CHAR(13)+'Supplier: '+ISNULL(@Supplier, 'None')+CHAR(10)+CHAR(13)+'Part Number: '+ISNULL(@PartNumber, '')+CHAR(10)+CHAR(13)+'Router Part No: '+ISNULL(@RouterPartNumber, '')+CHAR(10)+CHAR(13)+'Sales Order Number: '+ISNULL(CONVERT(NVARCHAR(MAX), @SalesOrderNumber),'')+CHAR(10)+CHAR(13)+'Sales Order Line: '+ISNULL(CONVERT(NVARCHAR(MAX), @SalesOrderLineFK),'')+CHAR(10)+CHAR(13)+'Reference PO Number: '+ISNULL(@ReferencePurchaseOrderNumber, '')+CHAR(10)+CHAR(13)+'Disposition: '+ISNULL(@Disposition, '')+CHAR(10)+CHAR(13)+'Qty Rejected: '+ISNULL(CONVERT(NVARCHAR(MAX), @QuantityReceived), '')+CHAR(10)+CHAR(13)+'Qty Fabricated: '+ISNULL(CONVERT(NVARCHAR(MAX),@OriginalQuantity),'')+CHAR(10)+CHAR(13)+'Operation: '+ISNULL(@OperationType, 'None')+CHAR(10)+CHAR(13)+'Created on: '+ISNULL(FORMAT(@CreateDate, 'D', 'en-US'),'')+CHAR(10)+CHAR(13)+'Rejection Type: '+ISNULL(@RejectedBecause,'')+CHAR(10)+CHAR(13)+'Responsible Department: '+ISNULL(@ResDep,'')+CHAR(10)+CHAR(13)+'Description: '+ISNULL(@ItemDescription, 'None')+CHAR(10)+CHAR(13)+'Explanation of Discrepancy: '+ISNULL(@CustomerDiscrepancy, 'None')+CHAR(10)+CHAR(13)+'Specifications Not Met: '+ISNULL(@CustomerCause, 'None')+CHAR(10)+CHAR(13)+'Inspector Comments: '+ISNULL(@InspectorComment, 'None')+CHAR(10)+CHAR(13)+'Known Causes: '+ISNULL(@KnowCause, 'None');
+
+		FETCH NEXT
+		FROM InsertedNCR_Cursor
+		INTO
+	@QualityControlPK,
+	@ApprovedByFK,
+	@AssignedEmployeeFK,
+	@CreatedByFK,
+	@CorrectiveActionApprovedByFK,
+	@CorrectiveActionTypeOneFK,
+	@CorrectiveActionTypeTwoFK,
+	@CorrectiveActionTypeThreeFK,
+	@CustomerFK,
+	@CustomerInspectedByFK,
+	@CustomerResponsiblePartyFK,
+	@CustomerWorkCenterFK,
+	@Disposition,
+	@DispositionTypeTwoFK,
+	@DispositionTypeThreeFK,
+	@DivisionFK,
+	@FailureTypeOneFK,
+	@FailureTypeTwoFK,
+	@FailureTypeThreeFK,
+	@ItemFK,
+	@InspectedByFK,
+	@OriginalJobNumberPurchaseOrderReceiving,
+	@PerformedByFK,
+	@PurchaseOrderReceivingFK,
+	@PurchaseOrderReceivingLineFK,
+	@QualityControlStatusFK,
+	@RejectionTypeFK,
+	@CustomerRejectionTypeFK,
+	@ResponsiblePartyFK,
+	@ResponsibleUserFK,
+	@ResponsibleUser1FK,
+	@RouterFK,
+	@SalesOrderLineFK,
+	@VendorFK,
+	@WorkCenterFK,
+	@WorkOrderNestFK,
+	@WorkOrderFK,
+	@DepartmentFK,
+	@CreditCompletedByFK,
+	@DebitCompletedByFK,
+	@ReceivedByFK,
+	@QuantityScrapReasonFK,
+	@ReworkCostScrapReasonFK,
+	@InitiallyFoundAtFK,
+	@ContainmentActionAssignedToFK,
+	@TeamLeaderFK,
+	@ManufacturingReviewFK,
+	@RootCauseAssignedEmployeeFK,
+	@WorkReleaseNumber,
+	@CreditInvoiceNumber,
+	@DebitInvoiceNumber,
+	@InvoiceNumber,
+	@JobNumber,
+	@OriginalJobNumber,
+	@OriginalSalesOrderNumber,
+	@OriginalWorkOrderNumber,
+	@PurchaseOrderReceivingQualityControlNumber,
+	@SalesOrderNumber,
+	@SalesOrderQualityControlNumber,
+	@WorkOrderQualityControlNumber,
+	@ReworkWorkOrderNumber,
+	@Accounting,
+	@Administration,
+	@CommercialCarrier,
+	@ContainmentActionCompleteFlag,
+ 	@ContainmentActionRequiredYes,
+	@ContainmentActionRequiredNo,
+	@CorrectiveActionsReevaluate,
+	@CorrectiveActionRequired,
+	@CorrectiveActionTaken,
+	@CreditRequired,
+	@CustomerDebited,
+	@CustomerFlag,
+	@DMRCompleted,
+	@Effective,
+	@EscapeNo,
+	@EscapeYes,
+	@IsRFA,
+	@IssueClosed,
+	@MaterialReceivedInMRBArea,
+	@MRBMeetingHeld,
+	@NoDebitCreditRequired,
+	@NoFlag,
+	@OnHandInventoryChecked,
+	@OtherFiscalResponsibility,
+	@Production,
+	@Purchasing,
+	@Rejected,
+	@ReevaluateRootCause,
+	@RequiresApproval,
+	@RMAOnly,
+	@RootCauseAnalysisComplete,
+	@RootCauseRequiredYes,
+	@RootCauseRequiredNo,
+	@Sales,
+	@SuccessfulFlag,
+	@Shipping,
+	@SupplierFlag,
+	@UnSuccessfulFlag,
+	@WIPCheckedForDefect,
+	@YesFlag,
+	@CreditPrice,
+	@DebitPrice,
+	@Other,
+	@OriginalQuantity,
+	@Price,
+	@QualityToCredit,
+	@QualityToDebit,
+	@QuantityAuthorized,
+	@QuantityReceived,
+	@QuantityReturned,
+	@QuantityRework,
+	@QuantityScrap,
+	@ReturnToSupplier,
+	@ReworkCostLabor,
+	@ReworkCostMaterial,
+	@ReworkCostMiscellaneous,
+	@ReworkCostScrap,
+	@TotalCreditAmount,
+	@TotalDebitAmount,
+	@TotalReworkCosts,
+	@UseAsIs,
+	@ApprovalDate,
+	@ApprovedDate,
+	@CompletedDate,
+	@CorrectiveActionApprovedDate,
+	@CorrectiveActionCompletedByDate,
+	@CorrectiveActionManufacturingReviewDate,
+	@CreateDate,
+	@CreditDate,
+	@CreditCompleted,
+	@CustomerInspectionDate,
+	@DeadLineDate,
+	@DebitCompletedDate,
+	@DebitDateDue,
+	@DeniedDate,
+	@DueDate,
+	@EndDate,
+	@FollowUpDate,
+	@InspectionDate,
+	@IssueClosedDate,
+	@MaterialReceivedVerifiedDate,
+	@MRBMeetingDate,
+	@OnHandInventoryVerifiedDate,
+	@PreventativeActionAssignedToDate,
+	@PriorityDate,
+	@Customer,
+	@Supplier,
+	@ReceivedDate,
+	@RFAAssignedDate,
+	@RootCauseAnalysisCompetedDate,
+	@RootCauseDate,
+	@StartDate,
+	@WIPCheckedVerifiedDate,
+	@CAControlNumber,
+	@ReferencePurchaseOrderNumber,
+	@ReferenceOrderNumber,
+	@SubmissionNumber,
+	@Name,
+	@RMANumber,
+	@PartNumber,
+	@ItemDescription,
+	@Revision,
+	@RouterRevision,
+	@RouterPartNumber,
+	@RouterDescription,
+	@AdditionalComments,
+	@CAPAComments,
+	@Cause,
+	@Comment,
+	@ContainmentActionComplete,
+	@CorrectiveAction,
+	@CreditComment,
+	@CustomerCause,
+	@CustomerDiscrepancy,
+	@DebitComment,
+	@Description,
+	@DescripeFollowUp,
+	@Discrepancy,
+	@OperationType,
+	@Explanation,
+	@InspectorComment,
+	@KnowCause,
+	@OtherFiscalResponsibilityComment,
+	@PreventiveAction,
+	@ResDep,
+	@RootCauseCommentOne,
+	@RootCauseCommentTwo,
+	@RootCauseCommentThree,
+	@RootCauseCommentFour,
+	@RootCauseCommentFive,
+	@RootCauseCommentSix,
+	@RootCauseAnalysisCommentOne,
+	@RootCauseAnalysisCommentTwo,	
+	@RootCauseAnalysisCommentThree,
+	@RootCauseAnalysisCommentFour,
+	@RootCauseAnalysisCommentFive,
+	@RootCauseAnalysisCommentSix,
+	@SalesComment,
+	@TeamMembers,
+	@CustomerComplaint,
+	@ItemSerialNumberFK,
+	@OperationFK,
+	@OperationInitiallyFoundFK,
+	@RejectedBecause,
+	@CloseDate,
+	@OpportunityForImprovement,		
+	@NameBy,
+	@CustomerNCRNumber;		
+		IF LEN(@FullSubject) > 0
+			BEGIN
+			  EXECUTE msdb.dbo.sp_send_dbmail @profile_name = 'RMA MIE Alert'
+			 ,@recipients = @recipients
+			 ,@Subject = @FullSubject
+			 ,@Body = @FullDescription;
+		        END;
+	END;
+ELSE
+BEGIN
+		SET @FullSubject = 'NCR '+ISNULL(CONVERT(NVARCHAR(MAX), @QualityControlPK), '')+' by '+ISNULL(@NameBy, 'No Name');
+		SET @FullDescription = 'NCR Number: '+ISNULL(CONVERT(NVARCHAR(MAX), @QualityControlPK), '')+CHAR(10)+CHAR(13)+'Customer: '+ISNULL(@Customer, 'None')+CHAR(10)+CHAR(13)+'Supplier: '+ISNULL(@Supplier, 'None')+CHAR(10)+CHAR(13)+'Part Number: '+ISNULL(@PartNumber, '')+CHAR(10)+CHAR(13)+'Router Part No: '+ISNULL(@RouterPartNumber, '')+CHAR(10)+CHAR(13)+'Reference PO Number: '+ISNULL(@ReferencePurchaseOrderNumber, '')+CHAR(10)+CHAR(13)+'Work Order No: '+ISNULL(CONVERT(NVARCHAR(MAX), @WorkOrderFK),'')+CHAR(10)+CHAR(13)+'Disposition: '+ISNULL(@Disposition, '')+CHAR(10)+CHAR(13)+'PO Receiving Number: '+ISNULL(CONVERT(NVARCHAR(MAX),@PurchaseOrderReceivingFK),'')+CHAR(10)+CHAR(13)+'Qty Rejected: '+ISNULL(CONVERT(NVARCHAR(MAX), @QuantityReceived),'')+CHAR(10)+CHAR(13)+'Qty Fabricated: '+ISNULL(CONVERT(NVARCHAR(MAX),@OriginalQuantity),'')+CHAR(10)+CHAR(13)+'Operation: '+ISNULL(@OperationType, 'None')+CHAR(10)+CHAR(13)+'Created on: '+ISNULL(FORMAT(@CreateDate, 'D', 'en-US'),'')+CHAR(10)+CHAR(13)+'Rejection Type: '+ISNULL(@RejectedBecause,'')+CHAR(10)+CHAR(13)+'Responsible Department: '+ISNULL(@ResDep,'')+CHAR(10)+CHAR(13)+'Description: '+ISNULL(@ItemDescription, 'None')+CHAR(10)+CHAR(13)+'Explanation of Discrepancy: '+ISNULL(@CustomerDiscrepancy, 'None')+CHAR(10)+CHAR(13)+'Specifications Not Met: '+ISNULL(@CustomerCause, 'None')+CHAR(10)+CHAR(13)+'Inspector Comments: '+ISNULL(@InspectorComment, 'None')+CHAR(10)+CHAR(13)+'Known Causes: '+ISNULL(@KnowCause, 'None');
+
+		FETCH NEXT
+		FROM InsertedNCR_Cursor
+		INTO
+	@QualityControlPK,
+	@ApprovedByFK,
+	@AssignedEmployeeFK,
+	@CreatedByFK,
+	@CorrectiveActionApprovedByFK,
+	@CorrectiveActionTypeOneFK,
+	@CorrectiveActionTypeTwoFK,
+	@CorrectiveActionTypeThreeFK,
+	@CustomerFK,
+	@CustomerInspectedByFK,
+	@CustomerResponsiblePartyFK,
+	@CustomerWorkCenterFK,
+	@Disposition,
+	@DispositionTypeTwoFK,
+	@DispositionTypeThreeFK,
+	@DivisionFK,
+	@FailureTypeOneFK,
+	@FailureTypeTwoFK,
+	@FailureTypeThreeFK,
+	@ItemFK,
+	@InspectedByFK,
+	@OriginalJobNumberPurchaseOrderReceiving,
+	@PerformedByFK,
+	@PurchaseOrderReceivingFK,
+	@PurchaseOrderReceivingLineFK,
+	@QualityControlStatusFK,
+	@RejectionTypeFK,
+	@CustomerRejectionTypeFK,
+	@ResponsiblePartyFK,
+	@ResponsibleUserFK,
+	@ResponsibleUser1FK,
+	@RouterFK,
+	@SalesOrderLineFK,
+	@VendorFK,
+	@WorkCenterFK,
+	@WorkOrderNestFK,
+	@WorkOrderFK,
+	@DepartmentFK,
+	@CreditCompletedByFK,
+	@DebitCompletedByFK,
+	@ReceivedByFK,
+	@QuantityScrapReasonFK,
+	@ReworkCostScrapReasonFK,
+	@InitiallyFoundAtFK,
+	@ContainmentActionAssignedToFK,
+	@TeamLeaderFK,
+	@ManufacturingReviewFK,
+	@RootCauseAssignedEmployeeFK,
+	@WorkReleaseNumber,
+	@CreditInvoiceNumber,
+	@DebitInvoiceNumber,
+	@InvoiceNumber,
+	@JobNumber,
+	@OriginalJobNumber,
+	@OriginalSalesOrderNumber,
+	@OriginalWorkOrderNumber,
+	@PurchaseOrderReceivingQualityControlNumber,
+	@SalesOrderNumber,
+	@SalesOrderQualityControlNumber,
+	@WorkOrderQualityControlNumber,
+	@ReworkWorkOrderNumber,
+	@Accounting,
+	@Administration,
+	@CommercialCarrier,
+	@ContainmentActionCompleteFlag,
+ 	@ContainmentActionRequiredYes,
+	@ContainmentActionRequiredNo,
+	@CorrectiveActionsReevaluate,
+	@CorrectiveActionRequired,
+	@CorrectiveActionTaken,
+	@CreditRequired,
+	@CustomerDebited,
+	@CustomerFlag,
+	@DMRCompleted,
+	@Effective,
+	@EscapeNo,
+	@EscapeYes,
+	@IsRFA,
+	@IssueClosed,
+	@MaterialReceivedInMRBArea,
+	@MRBMeetingHeld,
+	@NoDebitCreditRequired,
+	@NoFlag,
+	@OnHandInventoryChecked,
+	@OtherFiscalResponsibility,
+	@Production,
+	@Purchasing,
+	@Rejected,
+	@ReevaluateRootCause,
+	@RequiresApproval,
+	@RMAOnly,
+	@RootCauseAnalysisComplete,
+	@RootCauseRequiredYes,
+	@RootCauseRequiredNo,
+	@Sales,
+	@SuccessfulFlag,
+	@Shipping,
+	@SupplierFlag,
+	@UnSuccessfulFlag,
+	@WIPCheckedForDefect,
+	@YesFlag,
+	@CreditPrice,
+	@DebitPrice,
+	@Other,
+	@OriginalQuantity,
+	@Price,
+	@QualityToCredit,
+	@QualityToDebit,
+	@QuantityAuthorized,
+	@QuantityReceived,
+	@QuantityReturned,
+	@QuantityRework,
+	@QuantityScrap,
+	@ReturnToSupplier,
+	@ReworkCostLabor,
+	@ReworkCostMaterial,
+	@ReworkCostMiscellaneous,
+	@ReworkCostScrap,
+	@TotalCreditAmount,
+	@TotalDebitAmount,
+	@TotalReworkCosts,
+	@UseAsIs,
+	@ApprovalDate,
+	@ApprovedDate,
+	@CompletedDate,
+	@CorrectiveActionApprovedDate,
+	@CorrectiveActionCompletedByDate,
+	@CorrectiveActionManufacturingReviewDate,
+	@CreateDate,
+	@CreditDate,
+	@CreditCompleted,
+	@CustomerInspectionDate,
+	@DeadLineDate,
+	@DebitCompletedDate,
+	@DebitDateDue,
+	@DeniedDate,
+	@DueDate,
+	@EndDate,
+	@FollowUpDate,
+	@InspectionDate,
+	@IssueClosedDate,
+	@MaterialReceivedVerifiedDate,
+	@MRBMeetingDate,
+	@OnHandInventoryVerifiedDate,
+	@PreventativeActionAssignedToDate,
+	@PriorityDate,
+	@Customer,
+	@Supplier,
+	@ReceivedDate,
+	@RFAAssignedDate,
+	@RootCauseAnalysisCompetedDate,
+	@RootCauseDate,
+	@StartDate,
+	@WIPCheckedVerifiedDate,
+	@CAControlNumber,
+	@ReferencePurchaseOrderNumber,
+	@ReferenceOrderNumber,
+	@SubmissionNumber,
+	@Name,
+	@RMANumber,
+	@PartNumber,
+	@ItemDescription,
+	@Revision,
+	@RouterRevision,
+	@RouterPartNumber,
+	@RouterDescription,
+	@AdditionalComments,
+	@CAPAComments,
+	@Cause,
+	@Comment,
+	@ContainmentActionComplete,
+	@CorrectiveAction,
+	@CreditComment,
+	@CustomerCause,
+	@CustomerDiscrepancy,
+	@DebitComment,
+	@Description,
+	@DescripeFollowUp,
+	@Discrepancy,
+	@OperationType,
+	@Explanation,
+	@InspectorComment,
+	@KnowCause,
+	@OtherFiscalResponsibilityComment,
+	@PreventiveAction,
+	@ResDep,
+	@RootCauseCommentOne,
+	@RootCauseCommentTwo,
+	@RootCauseCommentThree,
+	@RootCauseCommentFour,
+	@RootCauseCommentFive,
+	@RootCauseCommentSix,
+	@RootCauseAnalysisCommentOne,
+	@RootCauseAnalysisCommentTwo,	
+	@RootCauseAnalysisCommentThree,
+	@RootCauseAnalysisCommentFour,
+	@RootCauseAnalysisCommentFive,
+	@RootCauseAnalysisCommentSix,
+	@SalesComment,
+	@TeamMembers,
+	@CustomerComplaint,
+	@ItemSerialNumberFK,
+	@OperationFK,
+	@OperationInitiallyFoundFK,
+	@RejectedBecause,
+	@CloseDate,
+	@OpportunityForImprovement,		
+	@NameBy,
+	@CustomerNCRNumber;		
+		IF LEN(@FullSubject) > 0
+			BEGIN
+			  EXECUTE msdb.dbo.sp_send_dbmail @profile_name = 'NCR MIE Alert'
+			 ,@recipients = @recipients
+			 ,@Subject = @FullSubject
+			 ,@Body = @FullDescription;
+		        END;
+END;
+
+	CLOSE InsertedNCR_Cursor;
+	
+	DEALLOCATE InsertedNCR_Cursor;
+END;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+--Created by Vimanga Umange

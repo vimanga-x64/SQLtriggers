@@ -1,0 +1,295 @@
+--REPLY TASK TRIGGER
+
+CREATE OR ALTER TRIGGER [dbo].[Trg_Alert_Complete_Task_Activity] ON [dbo].[TaskActivity]
+FOR INSERT
+,UPDATE
+AS
+BEGIN
+	SET NOCOUNT ON;
+
+	DECLARE @TaskActivityPK INT;
+	DECLARE @TaskActivityStatusFK INT;
+	DECLARE @Assignee NVARCHAR(500);
+	DECLARE @TaskActivityTypeFK INT;
+	DECLARE @CreatorFK INT;
+	DECLARE @Creator NVARCHAR(500);
+	DECLARE @TaskStatus NVARCHAR(500);
+	DECLARE @AssignedToFK INT;
+	DECLARE @InvoiceFK INT;
+	DECLARE @ItemFK INT;
+	DECLARE @MachineMaintenanceScheduleWorkOrderFK INT;
+	DECLARE @PartyFK INT
+		,@PurchaseOrderFK INT;
+	DECLARE @PurchaseOrderRequestFK INT;
+	DECLARE @PurchaseOrderReceivingFK INT;
+	DECLARE @QuoteFK INT
+		,@RequestForQuoteFK INT;
+	DECLARE @RouterFK INT;
+	DECLARE @SalesOrderFK INT;
+	DECLARE @WorkOrderFK INT;
+	DECLARE @QualityControlFK INT;
+	DECLARE @Priority INT;
+	DECLARE @ApprovalRequired BIT;
+	DECLARE @CreatedDate DATE;
+	DECLARE @AssignedDate DATE;
+	DECLARE @CompletedDate DATE;
+	DECLARE @DeadlineDate DATE;
+	DECLARE @StartTime DATETIME;
+	DECLARE @EndTime DATETIME;
+	DECLARE @ApprovalDate DATE;
+	DECLARE @RequestDeniedDate DATE;
+	DECLARE @TaskWorkFlowTemplateNumber NVARCHAR(50);
+	DECLARE @Name NVARCHAR(100);
+	DECLARE @PartNumber NVARCHAR(150);
+	DECLARE @Description NVARCHAR(500);
+	DECLARE @Comments NVARCHAR(500);
+	DECLARE @QualityControlContainmentActionNumber INT;
+	DECLARE @EngineeringChangeRequestFK INT;
+	DECLARE @Repeat BIT;
+	DECLARE @CompletedByFK INT;
+	DECLARE @FullSubject NVARCHAR(500);
+	DECLARE @FullDescription NVARCHAR(1000);
+	DECLARE @Emails NVARCHAR(500);
+
+	SET @FullSubject = '';
+	SET @FullDescription = '';
+
+	DECLARE InsertedTaskActivity_Cursor2 CURSOR LOCAL
+	FOR
+	SELECT [TaskActivityPK]
+		,[TaskActivityStatusFK]
+		,[TaskActivityTypeFK]
+		,ISNULL((
+				SELECT FirstName + ' ' + LastName
+				FROM [User]
+				WHERE UserPK = [CreatorFK]
+				), '') Creator
+		,[AssignedToFK]
+		,[InvoiceFK]
+		,[ItemFK]
+		,[MachineMaintenanceScheduleWorkOrderFK]
+		,[PartyFK]
+		,[PurchaseOrderFK]
+		,[PurchaseOrderRequestFK]
+		,[PurchaseOrderReceivingFK]
+		,[QuoteFK]
+		,[RequestForQuoteFK]
+		,[RouterFK]
+		,[SalesOrderFK]
+		,[WorkOrderFK]
+		,[QualityControlFK]
+		,[Priority]
+		,[ApprovalRequired]
+		,CreatedDate
+		,AssignedDate
+		,CompletedDate
+		,DeadlineDate
+		,[StartTime]
+		,[EndTime]
+		,[ApprovalDate]
+		,[RequestDeniedDate]
+		,[TaskWorkFlowTemplateNumber]
+		,[Name]
+		,[PartNumber]
+		,[Description]
+		,[Comments]
+		,[QualityControlContainmentActionNumber]
+		,[EngineeringChangeRequestFK]
+		,[Repeat]
+		,[CompletedByFK]
+		,[CreatorFK]
+	FROM inserted;
+
+	OPEN InsertedTaskActivity_Cursor2;
+
+	FETCH NEXT
+	FROM InsertedTaskActivity_Cursor2
+	INTO @TaskActivityPK
+		,@TaskActivityStatusFK
+		,@TaskActivityTypeFK
+		,@Creator
+		,@AssignedToFK
+		,@InvoiceFK
+		,@ItemFK
+		,@MachineMaintenanceScheduleWorkOrderFK
+		,@PartyFK
+		,@PurchaseOrderFK
+		,@PurchaseOrderRequestFK
+		,@PurchaseOrderReceivingFK
+		,@QuoteFK
+		,@RequestForQuoteFK
+		,@RouterFK
+		,@SalesOrderFK
+		,@WorkOrderFK
+		,@QualityControlFK
+		,@Priority
+		,@ApprovalRequired
+		,@CreatedDate
+		,@AssignedDate
+		,@CompletedDate
+		,@DeadlineDate
+		,@StartTime
+		,@EndTime
+		,@ApprovalDate
+		,@RequestDeniedDate
+		,@TaskWorkFlowTemplateNumber
+		,@Name
+		,@PartNumber
+		,@Description
+		,@Comments
+		,@QualityControlContainmentActionNumber
+		,@EngineeringChangeRequestFK
+		,@Repeat
+		,@CompletedByFK
+		,@CreatorFK;
+
+	WHILE (@@FETCH_STATUS = 0)
+		IF @TaskActivityStatusFK = 3 OR @CompletedDate IS NOT NULL
+		BEGIN
+			SET @Emails = (
+					SELECT Email
+					FROM [User]
+					WHERE UserPK = @CreatorFK
+					);
+			SET @Assignee = (
+					SELECT FirstName + ' ' + LastName
+					FROM [User]
+					WHERE UserPK = @AssignedToFK
+					);
+			SET @TaskStatus = (
+					SELECT Description
+					FROM TaskActivityStatus
+					WHERE TaskActivityStatusPK = @TaskActivityStatusFK
+					);
+			SET @FullSubject = 'Update on Your Task: ' + CONVERT(NVARCHAR(MAX), @TaskActivityPK) + ' ' + ISNULL(@Name, 'No Title');
+			SET @FullDescription = 'The Task you assigned to ' + ISNULL(@Assignee, '')+ ' on ' +ISNULL(FORMAT(@AssignedDate, 'D', 'en-US'),'')+ ' has been COMPLETED on ' +ISNULL(FORMAT(@CompletedDate, 'D', 'en-US'),'');
+
+			FETCH NEXT
+			FROM InsertedTaskActivity_Cursor2
+			INTO @TaskActivityPK
+				,@TaskActivityStatusFK
+				,@TaskActivityTypeFK
+				,@Creator
+				,@AssignedToFK
+				,@InvoiceFK
+				,@ItemFK
+				,@MachineMaintenanceScheduleWorkOrderFK
+				,@PartyFK
+				,@PurchaseOrderFK
+				,@PurchaseOrderRequestFK
+				,@PurchaseOrderReceivingFK
+				,@QuoteFK
+				,@RequestForQuoteFK
+				,@RouterFK
+				,@SalesOrderFK
+				,@WorkOrderFK
+				,@QualityControlFK
+				,@Priority
+				,@ApprovalRequired
+				,@CreatedDate
+				,@AssignedDate
+				,@CompletedDate
+				,@DeadlineDate
+				,@StartTime
+				,@EndTime
+				,@ApprovalDate
+				,@RequestDeniedDate
+				,@TaskWorkFlowTemplateNumber
+				,@Name
+				,@PartNumber
+				,@Description
+				,@Comments
+				,@QualityControlContainmentActionNumber
+				,@EngineeringChangeRequestFK
+				,@Repeat
+				,@CompletedByFK
+				,@CreatorFK;
+
+			IF LEN(@FullSubject) > 0
+			BEGIN
+				EXECUTE msdb.dbo.sp_send_dbmail @profile_name = 'Task MIE Alert'
+					,@recipients = @Emails
+					,@Subject = @FullSubject
+					,@Body = @FullDescription;
+			END;
+		END;
+		ELSE
+		BEGIN
+			FETCH NEXT
+			FROM InsertedTaskActivity_Cursor2
+			INTO @TaskActivityPK
+				,@TaskActivityStatusFK
+				,@TaskActivityTypeFK
+				,@Creator
+				,@AssignedToFK
+				,@InvoiceFK
+				,@ItemFK
+				,@MachineMaintenanceScheduleWorkOrderFK
+				,@PartyFK
+				,@PurchaseOrderFK
+				,@PurchaseOrderRequestFK
+				,@PurchaseOrderReceivingFK
+				,@QuoteFK
+				,@RequestForQuoteFK
+				,@RouterFK
+				,@SalesOrderFK
+				,@WorkOrderFK
+				,@QualityControlFK
+				,@Priority
+				,@ApprovalRequired
+				,@CreatedDate
+				,@AssignedDate
+				,@CompletedDate
+				,@DeadlineDate
+				,@StartTime
+				,@EndTime
+				,@ApprovalDate
+				,@RequestDeniedDate
+				,@TaskWorkFlowTemplateNumber
+				,@Name
+				,@PartNumber
+				,@Description
+				,@Comments
+				,@QualityControlContainmentActionNumber
+				,@EngineeringChangeRequestFK
+				,@Repeat
+				,@CompletedByFK
+				,@CreatorFK;
+		END;
+
+	CLOSE InsertedTaskActivity_Cursor2;
+
+	DEALLOCATE InsertedTaskActivity_Cursor2;
+END;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+--Created by Vimanga Umange
